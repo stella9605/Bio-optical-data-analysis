@@ -1,9 +1,9 @@
 For participate in Data Analysis Competition 20.06.24 ~ 20.06.26
 
-Leader : @ rbs5464
-Team : @ stella9605
-       @ garim1772
-       @ qkckql 
+Leader : @ rbs5464 \t
+Team : @ stella9605 \t
+       @ garim1772 \t
+       @ qkckql  \t
        
        
 Bakground : Using this ingredient in the brain using light can reveal various ingredient information without damaging the skin. This is a method for obtaining neuroimaging for brain activity research, and it has become a method of replacing electroencephalogram testing (a method of puncture needle (electrode)) and attracts attention.
