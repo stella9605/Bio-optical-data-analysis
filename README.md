@@ -1,5 +1,5 @@
  # For participate in Data Analysis Competition 
- ## 20.06.24 ~ 20.06.26
+ ## 20.06.04 ~ 20.06.26
 
 Leader : @ rbs5464 
 Team : @ stella9605 
