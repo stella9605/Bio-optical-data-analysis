@@ -1,3 +1,5 @@
+# 토론에 있던 보간방법을 토대로 넣고 여러가지 스케일링을 넣어 테스트로 돌려봄
+# minmax scaler, standardscaler, roburst scaler, minmax + standard, standard + minmax
 run profile1
 
 # 보간
@@ -48,6 +50,13 @@ m_svm = SVC()
 m_svm.fit(train_x_scaled, train_y)
 m_svm.score(test_x_scaled, test_y)  # 96.5
 
+# robustScaler
+from sklearn.preprocessing import RobustScaler
+m_rsc = RobustScaler()
+m_rsc.fit(train_x)
+x_train_robust_scale = m_rsc.transform(train_x)
+x_test_robust_scale = m_rsc.transform(test_x)
+
 # minmax + standard scaler
 m_scale = StandardScaler()
 m_scale.fit(train_x_scaled)
@@ -73,12 +82,13 @@ model.add(Dense(4, activation='softmax'))
 model.compile(loss='mean_squared_error', # loss='categorical_crossentropy'
               optimizer='adam',
               metrics=['accuracy']) 
- 
+
 # 모델 실행 
 model.fit(train_x, train_y, epochs=500, batch_size=10)  # 60.56
 model.fit(train_x_scaled, train_y, epochs=500, batch_size=10) # minmaxscaler : 62.08, 38.04
 model.fit(train_x_sc, train_y, epochs=500, batch_size=10) # standard scaler 61.08, 38.04
 model.fit(train_x_sc, train_y, epochs=500, batch_size=10) # minmax + standard 60.72
+model.fit(x_train_robust_scale, train_y, epochs=500, batch_size=10) # robust scaler 0.38 
 model.fit(train_x_scaled, train_y, epochs=500, batch_size=10) # standard + minmax 61.92
 # => 결과
 # Epoch 100/100
@@ -90,3 +100,4 @@ model.fit(train_x_scaled, train_y, epochs=500, batch_size=10) # standard + minma
 print("\n Accuracy: %.4f" % (model.evaluate(test_x,test_y)[1]))
 print("\n Accuracy: %.4f" % (model.evaluate(test_x_scaled,test_y)[1]))
 print("\n Accuracy: %.4f" % (model.evaluate(test_x_sc,test_y)[1]))
+print("\n Accuracy: %.4f" % (model.evaluate(x_test_robust_scale,test_y)[1]))
