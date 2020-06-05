@@ -1,4 +1,5 @@
-
+# bfill 방법으로 na를 채운 뒤 남은 na를 ffill로 채움
+# minmax scaler, standardscaler, roburst scaler, minmax + standard, standard + minmax 로 간단하게 스케일링하여 실행하여봄
 run profile1
 
 test = pd.read_csv('test.csv')
