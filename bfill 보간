@@ -1,0 +1,96 @@
+
+run profile1
+
+test = pd.read_csv('test.csv')
+train = pd.read_csv('train.csv')
+submission = pd.read_csv('sample_submission.csv')
+
+# na를 전값으로 채운 뒤 남은 na를 앞의값으로 채운다.
+test.fillna
+
+평균값을 na에 삽입
+test.fillna(test.mean()), test.where(pd.notnull(test), test.mean(), axis = 'columns')
+
+test = test.fillna(method='bfill')
+test = test.fillna(method='ffill') # 전부 제거
+train = train.fillna(method='bfill') # 6개가 남는다
+train = train.fillna(method='ffill') # 전부 제거
+
+train = train.astype('float')
+test = test.astype('float')
+
+train.columns
+train.iloc[:,-4:] # 타겟
+train.iloc[:,0:71] # 자료
+
+
+train.isna().sum().sum() # na 확인
+
+train_x, test_x, train_y, test_y = train_test_split(train.iloc[:,0:71],
+                                                    train.iloc[:,-4:],
+                                                    random_state=0)
+
+# minmaxscaler
+m_mms = MinMaxScaler()
+m_mms.fit(train_x) # 각 설명변수의 최대, 최소 확인만
+train_x_scaled = m_mms.transform(train_x) # 최대, 최소에 맞게 데이터 변환
+test_x_scaled = m_mms.transform(test_x)
+
+# standard scaler
+m_scale = StandardScaler()
+m_scale.fit(train_x)
+train_x_sc = m_scale.transform(train_x)
+test_x_sc = m_scale.transform(test_x)
+
+# robustScaler
+from sklearn.preprocessing import RobustScaler
+m_rsc = RobustScaler()
+m_rsc.fit(train_x)
+x_train_robust_scale = m_rsc.transform(train_x)
+x_test_robust_scale = m_rsc.transform(test_x)
+
+# minmax + standard scaler
+m_scale = StandardScaler()
+m_scale.fit(train_x_scaled)
+train_x_sc = m_scale.transform(train_x_scaled)
+test_x_sc = m_scale.transform(test_x_scaled)
+
+# standard + minmax scaler
+# minmaxscaler
+m_mms = MinMaxScaler()
+m_mms.fit(train_x_sc) # 각 설명변수의 최대, 최소 확인만
+train_x_scaled = m_mms.transform(train_x_sc) # 최대, 최소에 맞게 데이터 변환
+test_x_scaled = m_mms.transform(test_x_sc)
+
+
+# 모델의 설정
+model = Sequential() 
+model.add(Dense(71, input_dim=71, activation='relu')) 
+model.add(Dense(35, activation='relu')) 
+model.add(Dense(17, activation='relu')) 
+model.add(Dense(4, activation='softmax'))
+ 
+# 모델 컴파일  
+model.compile(loss='mean_squared_error', # loss='categorical_crossentropy'
+              optimizer='adam',
+              metrics=['accuracy']) 
+ 
+# 모델 실행 
+model.fit(train_x, train_y, epochs=500, batch_size=10)  # 60.56
+model.fit(train_x_scaled, train_y, epochs=500, batch_size=10) # minmaxscaler : 62.08
+model.fit(train_x_sc, train_y, epochs=500, batch_size=10) # standard scaler 61.08
+model.fit(x_train_robust_scale, train_y, epochs=500, batch_size=10) # robust scaler 59.88
+model.fit(train_x_sc, train_y, epochs=500, batch_size=10) # minmax + standard 60.72
+model.fit(train_x_scaled, train_y, epochs=500, batch_size=10) # standard + minmax 61.92
+
+# => 결과
+# Epoch 100/100
+# 7500/7500 [==============================] - 1s 87us/step - 
+# loss: 44.0200 - accuracy: 0.5888
+
+ 
+# 결과 출력  
+print("\n Accuracy: %.4f" % (model.evaluate(test_x,test_y)[1]))
+print("\n Accuracy: %.4f" % (model.evaluate(test_x_scaled,test_y)[1]))
+print("\n Accuracy: %.4f" % (model.evaluate(test_x_sc,test_y)[1]))
+print("\n Accuracy: %.4f" % (model.evaluate(x_test_robust_scale,test_y)[1]))
