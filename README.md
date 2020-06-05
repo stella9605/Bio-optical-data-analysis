@@ -15,4 +15,4 @@ Use the data provided to create a component analysis algorithm in the brain
 
 
 + Result : 
-> d
+>d
