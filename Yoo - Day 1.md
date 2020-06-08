@@ -19,7 +19,7 @@ test_dst = test_dst.interpolate(methods='linear', axis=1)
 # 스팩트럼 데이터에서 보간이 되지 않은 값은 0으로 일괄 처리한다.
 train_dst.fillna(0, inplace=True) 
 test_dst.fillna(0, inplace=True)
-test_dst.head(1)
+test_dst.head(1) 
 
 train.update(train_dst) # 보간한 데이터를 기존 데이터프레임에 업데이트 한다.
 test.update(test_dst)
