@@ -1,3 +1,4 @@
+# 6월 8일에 올라온 코드를 사용하여 standard, minmax, robust, maxabs 4가지 스케일러를 사용해봄.
 ## 튜닝 함수
 def tuning_var(s):
     s_rho = s[0]          # _rho
@@ -180,11 +181,3 @@ print("\n Accuracy: %.4f" % (model.evaluate(x_test_robust_scale,test_y)[1])) # r
 
 print("\n Accuracy: %.4f" % (model.evaluate(train_data_maxAbsScaled,train_y)[1])) # maxabs accuracy = 0.7329, MAE = 3.4758
 print("\n Accuracy: %.4f" % (model.evaluate(test_data_maxAbsScaled,test_y)[1])) # maxabs accuracy = 0.7016, MAE = 3.xxxx
-
-# 시각화
-mglearn.tools.heatmap(arr_score,
-                      xlabel='gamma',
-                      xticklabels=v_parameter['gamma'],
-                      ylabel='C',
-                      yticklabels=v_parameter['C'],
-                      cmap='viridis')
