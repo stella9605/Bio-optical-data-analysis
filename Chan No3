@@ -1,0 +1,112 @@
+run profile1
+import math
+train = pd.read_csv('train.csv', index_col=0)
+test = pd.read_csv('test.csv', index_col=0)
+
+train.head()
+
+train.isnull().sum()[train.isnull().sum().values > 0]
+
+# 결측치 보완
+train_dst = train.filter(regex='_dst$', axis=1).replace(0, np.NaN) # dst 데이터만 따로 뺀다.
+test_dst = test.filter(regex='_dst$', axis=1).replace(0, np.NaN) # 보간을 하기위해 결측값을 삭제한다.
+test_dst.head(1)
+
+train_dst = train_dst.interpolate(methods='quadratic', axis=1)
+test_dst = test_dst.interpolate(methods='quadratic', axis=1)
+
+# 스팩트럼 데이터에서 보간이 되지 않은 값은 0으로 일괄 처리한다.
+train_dst.fillna(0, inplace=True) 
+test_dst.fillna(0, inplace=True)
+
+test_dst.head(1)
+
+train.update(train_dst) # 보간한 데이터를 기존 데이터프레임에 업데이트 한다.
+test.update(test_dst)
+
+X = train.iloc[:, :-4]
+Y = train.iloc[:,-4:]
+
+train_x, test_x, train_y, test_y = train_test_split(X,
+                                                    Y,
+                                                    random_state = 0)
+
+
+# 각 조직에 관환 감쇠계수
+attenuation_coefficient = pd.DataFrame({'NIR-1' : [10,48,25], 'NIR-2' : [7.4,45,23],'SWIR' : [6.5,44,21],'SWIR-2' : [9,49,24.5]})
+attenuation_coefficient.index = ['Brain_cortex','Cranial_bone','Skin']
+attenuation_coefficient.sum(axis = 0)
+
+n =  attenuation_coefficient.sum(axis = 0)['NIR-2'] # 감쇠계수
+
+## 튜닝 함수
+def tuning_var(s):
+    s_rho = s[0]          # _rho
+    s_src = s[1:36]       # _src
+    s_dst = s[36:]        # _dst    
+
+    # index 표준화
+    set_index = s_src.index.str.split('_').str[0]
+    s_src.index = set_index
+    s_dst.index = set_index
+
+    # 계산식 (lambert beer 법칙)
+    # A(흡광도) = -log10(I(투과방사선)/I0(입사방사선))  
+    #           = ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도)
+    
+    # 투광도
+    transmittance = (s_dst / s_src)
+    
+    # 계산 완료후 inf,nan 0으로 치환
+    transmittance = [i if i != np.inf else 0.0 for i in transmittance ]
+    transmittance = Series(transmittance).fillna(value = 0)
+
+    # math.log 계산을 위해 0을 1로 치환후 계산(흡광계수는 1로 가정한다.)
+    transmittance = Series([1 if i == 0 else i for i in transmittance ])
+    
+    #흡광도_1 : -log10(I(투과방사선)/I0(입사방사선))  
+    absorbance_1 = Series(map(lambda x : -math.log(x,10),transmittance))
+    
+    #흡광도_2 :  ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도) (농도는 1로 가정)
+    # 흡광계수는 3번째 논문에서 찾은 적외선 종류중 NIR-1 의 뇌피질, 두개골, 피부의 감쇠계수의 합을 적용시켰습니다.
+    absorbance_2 = Series(1/(((((s_rho)/10)**2)*2) * (n * 2.01)))
+    
+    # 흡광도 index 설정
+    absorbance_1.index = set_index.map(lambda x : 'A1_' + x)
+    absorbance_2.index = ['A2_rho']
+    
+    # 두 Series의 병합
+    out_s = Series()
+    out_s = out_s.append(absorbance_2).append(absorbance_1)
+    # 튜닝된 설명변수의 Series반환
+    return(out_s)
+
+# train 변수 튜닝
+tunning_train_x = train_x.apply(tuning_var, axis = 1)
+tunning_test_x = test_x.apply(tuning_var, axis = 1)
+
+# 튜닝 변수 스케일링
+m_sacled = StandardScaler()
+m_sacled.fit(tunning_train_x)
+
+x_scaled = m_sacled.transform(tunning_train_x)
+test_x_scaled = m_sacled.transform(tunning_test_x)
+
+# 모델의 설정
+model = Sequential() 
+model.add(Dense(18, input_dim=36, activation='relu')) 
+model.add(Dense(8, activation='relu'))
+model.add(Dense(4, activation='relu'))
+ 
+# 모델 컴파일  
+model.compile(loss='mean_squared_error',
+              optimizer='adam',
+              metrics=['MAE']) 
+ 
+# 모델 실행 
+model.fit(x_scaled, train_y, epochs=200, batch_size=10) 
+
+print("\n MAE: %.4f" % (model.evaluate(x_scaled,train_y)[1]))
+print("\n MAE: %.4f" % (model.evaluate(test_x_scaled,test_y)[1]))
+
+
