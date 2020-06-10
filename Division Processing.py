@@ -46,12 +46,12 @@ y_train_hbo2 = y_train['hbo2']
 y_train_ca = y_train['ca']
 y_train_na = y_train['na']
 
-parameters
+#parameters
 d_train = lgb.Dataset(x_train, label=y_train)
 params={'max_depth':10, 'learning_rate':0.07, 'num_iterations':200,
         'boosting':'gbdt','sub_feature':0.5, 'feature_fraction':0.7, 'objective':11,
         'num_leaves':90}
-
+#[Ref. http://machinelearningkorea.com/2019/09/29/lightgbm-%ED%8C%8C%EB%9D%BC%EB%AF%B8%ED%84%B0/] 
 multi_model = MultiOutputRegressor(params)
 
 ## - ing
