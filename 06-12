@@ -1,0 +1,179 @@
+# 값을돌려 헤모글로빈값만 넣은 뒤 산소포화도 해볼려했으나 
+# 처음의 Y값을 가져와야하는가 train의 Y값을  
+
+run profile_project
+run profile1
+
+train = pd.read_csv('train.csv', index_col=0)
+test = pd.read_csv('test.csv', index_col=0)
+
+train.head()
+
+train.isnull().sum()[train.isnull().sum().values > 0]
+
+# 결측치 보완
+train_dst = train.filter(regex='_dst$', axis=1).replace(0, np.NaN) # dst 데이터만 따로 뺀다.
+test_dst = test.filter(regex='_dst$', axis=1).replace(0, np.NaN) # 보간을 하기위해 결측값을 삭제한다.
+test_dst.head(1)
+
+train_dst = train_dst.interpolate(methods='quadratic', axis=1)
+test_dst = test_dst.interpolate(methods='quadratic', axis=1)
+
+# 스팩트럼 데이터에서 보간이 되지 않은 값은 0으로 일괄 처리한다.
+train_dst.fillna(0, inplace=True) 
+test_dst.fillna(0, inplace=True)
+
+test_dst.head(1)
+
+train.update(train_dst) # 보간한 데이터를 기존 데이터프레임에 업데이트 한다.
+test.update(test_dst)
+
+X = train.iloc[:, :-4]
+Y = train.iloc[:,-4:]
+
+Y_1 = Y.iloc[:,0:1]
+Y_2 = Y.iloc[:,1:2]
+Y_3 = Y.iloc[:,2:3]
+
+# train, test set
+#### hbb
+train_x, test_x, train_y, test_y = train_test_split(X,
+                                                    Y_1,
+                                                    random_state = 0)
+
+#### hbo2
+train_x, test_x, train_y, test_y = train_test_split(X,
+                                                    Y_2,
+                                                    random_state = 0)
+
+#### ca
+train_x, test_x, train_y, test_y = train_test_split(X,
+                                                    Y_3,
+                                                    random_state = 0)
+
+
+# train 변수 튜닝
+tunning_train_x = train_x.apply(tuning_var, axis = 1)
+tunning_test_x = test_x.apply(tuning_var, axis = 1)
+
+# 튜닝 변수 스케일링
+m_sacled = StandardScaler()
+m_sacled.fit(tunning_train_x)
+
+x_scaled = m_sacled.transform(tunning_train_x)
+test_x_scaled = m_sacled.transform(tunning_test_x)
+
+# 모델 생성 함수 사용해서 모델생성
+model_hhb = model_x(x_scaled, train_y, 200)     #  model_x사용법 : model_x(설명변수, 종속변수, epochs)입니다.
+model_hbo2 = model_x(x_scaled, train_y, 200)
+model_ca = model_x(x_scaled, train_y, 200)
+
+
+# 모델 test
+#### hhb
+print("\n MAE: %.4f" % (model_hhb.evaluate(x_scaled,train_y)[1]))           # 0.7879
+print("\n MAE: %.4f" % (model_hhb.evaluate(test_x_scaled,test_y)[1]))       # 0.9967
+
+#### hbo2
+print("\n MAE: %.4f" % (model_hbo2.evaluate(x_scaled,train_y)[1]))          # 0.5761
+print("\n MAE: %.4f" % (model_hbo2.evaluate(test_x_scaled,test_y)[1]))      # 0.6886
+
+#### ca
+print("\n MAE: %.4f" % (model_ca.evaluate(x_scaled,train_y)[1]))          # 1.8105
+print("\n MAE: %.4f" % (model_ca.evaluate(test_x_scaled,test_y)[1]))      # 2.1594
+
+
+
+
+from keras.models import load_model
+model_hhb.save('model_hhb_ann_bio_h5')   # h5 확장자로 저장 (hhb)
+model_hbo2.save('model_hbo2_ann_bio_h5')   # hbo2
+model_ca.save('model_ca_ann_bio_h5')   # hbo2
+
+dir(model)
+model2_hhb=load_model('model_hhb_ann_bio_h5')
+model2_hbo2=load_model('model_hbo2_ann_bio_h5')
+model2_ca=load_model('model_ca_ann_bio_h5')
+
+## sample_submission.csv load
+test1=pd.read_csv('sample_submission.csv',index_col='id')
+test1=test1.astype('float')
+
+# 진짜 테스트 변수 가공
+tunning_realtest_x = test.apply(tuning_var, axis = 1)
+realtest_x_scaled = m_sacled.transform(tunning_realtest_x)
+
+test1.hhb=model2_hhb.predict(realtest_x_scaled)
+test1.hbo2=model2_hbo2.predict(realtest_x_scaled)
+test1.ca=model2_ca.predict(realtest_x_scaled)
+
+type(model2_hhb.predict(realtest_x_scaled))
+len(model2_hhb.predict(realtest_x_scaled))
+
+# 산소포화도 = 옥시헤모글로빈 / (옥시헤모글로빈+디옥시헤모글로빈) * 100%
+
+test['hhb'] = test1.hhb
+test['hbo2'] = test1.hbo2
+test['ca'] = test1.ca
+test['SO'] = test.hhb / (test.hbo2 + test.hhb) * 100
+train['SO'] = train.hhb / (train.hbo2 + train.hhb) * 100
+
+X = train.iloc[:, 0:-2]
+X['SO'] = train['SO']
+Y = train.iloc[:,-2]
+
+train_x.iloc[:,-2]
+
+
+#### na
+train_x, test_x, train_y, test_y = train_test_split(X,
+                                                    Y,
+                                                    random_state = 0)
+
+# train 변수 튜닝
+tunning_train_x = train_x.apply(tuning_var2, axis = 1)
+tunning_test_x = test_x.apply(tuning_var2, axis = 1)
+
+# 튜닝 변수 스케일링
+m_sacled = StandardScaler()
+m_sacled.fit(tunning_train_x)
+
+x_scaled = m_sacled.transform(tunning_train_x)
+test_x_scaled = m_sacled.transform(tunning_test_x)
+
+run profile1
+run profile_project
+
+# 모델 생성 함수 사용해서 모델생성
+# model_ca = model_x2(x_scaled, train_y, 200)
+# model_na = model_x2(x_scaled, train_y, 200)
+model_cana = model_x2(x_scaled, train_y, 200)
+# ---------------------------------------------------------------------
+#### ca
+#print("\n MAE: %.4f" % (model_ca.evaluate(x_scaled,train_y)[1]))            # 1.0475
+#print("\n MAE: %.4f" % (model_ca.evaluate(test_x_scaled,test_y)[1]))        # 1.1354
+#### na
+#print("\n MAE: %.4f" % (model_na.evaluate(x_scaled,train_y)[1]))            # 1.9907
+#print("\n MAE: %.4f" % (model_na.evaluate(test_x_scaled,test_y)[1]))        # 2.1199
+print("\n MAE: %.4f" % (model_cana.evaluate(x_scaled,train_y)[1]))  # 0.8826
+print("\n MAE: %.4f" % (model_cana.evaluate(test_x_scaled,test_y)[1]))  # 1.1812
+
+
+# model_ca.save('model_ca_ann_bio_h5')   # ca
+# model_na.save('model_na_ann_bio_h5')   # na
+model_cana.save('model_cana_ann_bio_h5')   # ca, na
+
+# model2_ca=load_model('model_ca_ann_bio_h5')  
+# model2_na=load_model('model_na_ann_bio_h5') 
+model2_cana=load_model('model_cana_ann_bio_h5')
+
+# 진짜 테스트 변수 가공
+tunning_realtest_x = test.apply(tuning_var2, axis = 1)
+realtest_x_scaled = m_sacled.transform(tunning_realtest_x)
+
+
+len(model2_cana.predict(realtest_x_scaled))
+test1.loc[:,['ca','na']] = model2_cana.predict(realtest_x_scaled)
+test1.loc[:,'na'] = model2_cana.predict(realtest_x_scaled)
+
+test1.to_csv("test1.csv")
