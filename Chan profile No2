@@ -105,7 +105,7 @@ attenuation_coefficient = pd.DataFrame({'NIR-1' : [10,48,25],
 
 attenuation_coefficient.index = ['Brain_cortex','Cranial_bone','Skin']  # 인덱스 설정
  
-n = attenuation_coefficient.mean(axis = 1).sum()  # 가각의 조직에 관한 적외선들의 감쇠 계수 들의 평균의 합
+avg_n = attenuation_coefficient.mean(axis = 1).sum()  # 가각의 조직에 관한 적외선들의 감쇠 계수 들의 평균의 합
 
 attenuation_length= pd.DataFrame({'NIR-1' : [1.0,0.2,0.4], 
                                   'NIR-2' : [1.35,0.22,0.44],
@@ -115,10 +115,10 @@ attenuation_length= pd.DataFrame({'NIR-1' : [1.0,0.2,0.4],
 attenuation_length.index = ['Brain_cortex','Cranial_bone','Skin']  # 인덱스 설정
 
 n_l = attenuation_length.mean(axis = 1).sum()  # 가각의 조직에 관한 적외선들의 감쇠 길이 들의 평균의 합
-
+n_l = n_l / 10 # mm -> cm
 ##################### 설명변수 튜닝함수
 def tuning_var(s):
-    s_rho = s[0]          # _rho
+    s_rho = s[0] / 10     # _rho (mm -> cm)
     s_src = s[1:36]       # _src
     s_dst = s[36:]        # _dst    
 
@@ -132,7 +132,7 @@ def tuning_var(s):
     #           = ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도)
     
     # 투광도
-    transmittance = (s_dst / s_src)
+    transmittance = (s_dst/s_src)
     
     # 계산 완료후 inf,nan 0으로 치환
     transmittance = [i if i != np.inf else 0.0 for i in transmittance ]
@@ -142,11 +142,14 @@ def tuning_var(s):
     transmittance = Series([1 if i == 0 else i for i in transmittance ])
     
     #흡광도_1 : -log10(I(투과방사선)/I0(입사방사선))  
-    absorbance_1 = Series(map(lambda x : -math.log(x,10),transmittance))
+    absorbance_1 = Series(map(lambda x : (-math.log(x,10)),transmittance))
     
     #흡광도_2 :  ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도) (농도는 1로 가정) 
     # 흡광계수는 감쇠계수 * 감쇠길이(cm)로 사용
-    absorbance_2 = Series(((((s_rho)/10) * (n * (n_l * 0.1)))))
+    
+    c = 1
+    final_n = ((n_l)**2) * avg_n
+    absorbance_2 = Series(((s_rho)**2) * final_n * c)
     
     # 흡광도 index 설정
     absorbance_1.index = set_index.map(lambda x : 'A1_' + x)
