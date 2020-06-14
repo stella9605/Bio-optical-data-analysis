@@ -1,0 +1,240 @@
+def tuning_var(s):
+    s_rho = s[0]          # _rho
+    s_src = s[1:36]       # _src
+    s_dst = s[36:]        # _dst 
+
+    # index 표준화
+    set_index = s_src.index.str.split('_').str[0]
+    s_src.index = set_index
+    s_dst.index = set_index
+
+    # 계산식 (lambert beer 법칙)
+    # A(흡광도) = -log10(I(투과방사선)/I0(입사방사선))  
+    #           = ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도)
+    
+    # 투광도
+    transmittance = (s_dst / s_src)
+    
+    # 계산 완료후 inf,nan 0으로 치환
+    transmittance = [i if i != np.inf else 0.0 for i in transmittance ]
+    transmittance = Series(transmittance).fillna(value = 0)
+
+    # math.log 계산을 위해 0을 1로 치환후 계산(흡광계수는 1로 가정한다.)
+    transmittance = Series([1 if i == 0 else i for i in transmittance ])
+    
+    #흡광도_1 : -log10(I(투과방사선)/I0(입사방사선))  
+    absorbance_1 = Series(map(lambda x : -math.log(x,10),transmittance))
+    
+    #흡광도_2 :  ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도) (농도는 1로 가정) 
+    # 흡광계수는 감쇠계수 * 감쇠길이(cm)로 사용
+    absorbance_2 = Series(((((s_rho)/10) * (n * (n_l * 0.1)))))
+    
+    # 흡광도 index 설정
+    absorbance_1.index = set_index.map(lambda x : 'A1_' + x)
+    absorbance_2.index = ['A2_rho']
+    
+    # 두 Series의 병합
+    out_s = Series()
+    out_s = out_s.append(absorbance_2).append(absorbance_1)
+    # 튜닝된 설명변수의 Series반환
+    return(out_s)
+
+# 모델 생성 함수
+def model_x(train_x, train_y, number):
+   
+    # 모델의 설정
+    model = Sequential() 
+    model.add(Dense(18, input_dim=36, activation='relu')) 
+    model.add(Dense(8, activation='relu'))
+    model.add(Dense(4, activation='relu'))
+    model.add(Dense(1, activation='relu'))
+    
+    # 모델 컴파일
+    model.compile(loss='mean_squared_error',
+                  optimizer='adam',
+                  metrics=['MAE'])
+ 
+    # 모델 실행 
+    model.fit(train_x, train_y, epochs=number, batch_size=10) 
+    return(model)
+
+def model_x2(train_x, train_y, number):
+   
+    # 모델의 설정
+    model = Sequential() 
+    model.add(Dense(20, input_dim=40, activation='relu')) 
+    model.add(Dense(10, activation='relu'))
+    model.add(Dense(5, activation='relu'))
+    model.add(Dense(1, activation='relu'))
+    
+    # 모델 컴파일
+    model.compile(loss='mean_squared_error',
+                  optimizer='adam',
+                  metrics=['MAE'])
+ 
+    # 모델 실행 
+    model.fit(train_x, train_y, epochs=number, batch_size=10) 
+    return(model)
+
+def tuning_var2(s):
+    
+    s_rho = s[0]          # _rho
+    s_src = s[1:36]       # _src
+    s_dst = s[36:-4]        # _dst
+    s_hbo2 = s[-3] # hbo2
+    s_hhb = s[-4] # hhb
+    s_ca = s[-2]
+    s_SO = s[-1] # SO 산소포화도
+
+    s_hbo2 = Series(s_hbo2)
+    s_hhb = Series(s_hhb)
+    s_ca = Series(s_ca)
+    ss_SO = Series(s_SO)
+
+    # index 표준화
+    set_index = s_src.index.str.split('_').str[0]
+    s_src.index = set_index
+    s_dst.index = set_index
+
+    # 계산식 (lambert beer 법칙)
+    # A(흡광도) = -log10(I(투과방사선)/I0(입사방사선))  
+    #           = ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도)
+    
+    
+    # 투광도
+    transmittance = (s_dst / s_src)
+    
+    # 계산 완료후 inf,nan 0으로 치환
+    transmittance = [i if i != np.inf else 0.0 for i in transmittance ]
+    transmittance = Series(transmittance).fillna(value = 0)
+
+    # math.log 계산을 위해 0을 1로 치환후 계산(흡광계수는 1로 가정한다.)
+    transmittance = Series([1 if i == 0 else i for i in transmittance ])
+    
+    #흡광도_1 : -log10(I(투과방사선)/I0(입사방사선))  
+    absorbance_1 = Series(map(lambda x : -math.log(x,10),transmittance))
+    
+    #흡광도_2 :  ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도) (농도는 1로 가정) 
+    # 흡광계수는 감쇠계수 * 감쇠길이(cm)로 사용
+    absorbance_2 = Series(((((s_rho)/10) * (n * (n_l * 0.1)))))
+
+    # 흡광도 index 설정
+    absorbance_1.index = set_index.map(lambda x : 'A1_' + x)
+    absorbance_2.index = ['A2_rho']
+    s_hbo2.index = ['hbo2']
+    s_hhb.index = ['hhb']
+    s_ca.index = ['ca']
+    ss_SO.index = ['SO']
+    
+    # 두 Series의 병합
+    out_s = Series()
+    out_s = out_s.append(absorbance_2).append(absorbance_1)
+    out_s = out_s.append(s_hbo2)
+    out_s = out_s.append(s_hhb)
+    out_s = out_s.append(s_ca)
+    out_s = out_s.append(ss_SO)
+    # 튜닝된 설명변수의 Series반환
+    return(out_s)
+"""
+def tuning_var2(s):
+    s_rho = s[0]          # _rho
+    s_src = s[1:36]       # _src
+    s_dst = s[36:-3]        # _dst
+    s_hbo2 = s[-2] # hbo2
+    s_hhb = s[-3] # hhb
+    s_SO = s[-1] # SO 산소포화도
+
+    s_hbo2 = Series(s_hbo2)
+    s_hhb = Series(s_hhb)
+    ss_SO = Series(s_SO)
+
+    # index 표준화
+    set_index = s_src.index.str.split('_').str[0]
+    s_src.index = set_index
+    s_dst.index = set_index
+
+    # 계산식 (lambert beer 법칙)
+    # A(흡광도) = -log10(I(투과방사선)/I0(입사방사선))  
+    #           = ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도)
+    
+    
+    # 투광도
+    transmittance = (s_dst / s_src)
+    
+    # 계산 완료후 inf,nan 0으로 치환
+    transmittance = [i if i != np.inf else 0.0 for i in transmittance ]
+    transmittance = Series(transmittance).fillna(value = 0)
+
+    # math.log 계산을 위해 0을 1로 치환후 계산(흡광계수는 1로 가정한다.)
+    transmittance = Series([1 if i == 0 else i for i in transmittance ])
+    
+    #흡광도_1 : -log10(I(투과방사선)/I0(입사방사선))  
+    absorbance_1 = Series(map(lambda x : -math.log(x,10),transmittance))
+    
+    #흡광도_2 :  ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도) (농도는 1로 가정) 
+    # 흡광계수는 감쇠계수 * 감쇠길이(cm)로 사용
+    absorbance_2 = Series(((((s_rho)/10) * (n * (n_l * 0.1)))))
+
+    # 흡광도 index 설정
+    absorbance_1.index = set_index.map(lambda x : 'A1_' + x)
+    absorbance_2.index = ['A2_rho']
+    s_hbo2.index = ['hbo2']
+    s_hhb.index = ['hhb']
+    ss_SO.index = ['SO']
+    
+    # 두 Series의 병합
+    out_s = Series()
+    out_s = out_s.append(absorbance_2).append(absorbance_1)
+    out_s = out_s.append(s_hbo2)
+    out_s = out_s.append(s_hhb)
+    out_s = out_s.append(ss_SO)
+    # 튜닝된 설명변수의 Series반환
+    return(out_s)
+"""
+## 튜닝 함수
+def tuning_var3(s):
+    s_rho = s[0]          # _rho
+    s_src = s[1:36]       # _src
+    s_dst = s[36:-1]        # _dst
+    s_hbo2 = s[-2] # hbo2
+    s_hhb = s[-3] # hhb
+    s_SO = s[-1] # SO 산소포화도
+
+    # index 표준화
+    set_index = s_src.index.str.split('_').str[0]
+    s_src.index = set_index
+    s_dst.index = set_index
+
+    # 계산식 (lambert beer 법칙)
+    # A(흡광도) = -log10(I(투과방사선)/I0(입사방사선))  
+    #           = ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도)
+    
+    # 투광도
+    transmittance = (s_dst / s_src)
+    
+    # 계산 완료후 inf,nan 0으로 치환
+    transmittance = [i if i != np.inf else 0.0 for i in transmittance ]
+    transmittance = Series(transmittance).fillna(value = 0)
+
+    # math.log 계산을 위해 0을 1로 치환후 계산(흡광계수는 1로 가정한다.)
+    transmittance = Series([1 if i == 0 else i for i in transmittance ])
+    
+    #흡광도_1 : -log10(I(투과방사선)/I0(입사방사선))  
+    absorbance_1 = Series(map(lambda x : -math.log(x,10),transmittance))
+    
+    #흡광도_2 :  ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도) (농도는 1로 가정) 
+    # 흡광계수는 감쇠계수 * 감쇠길이(cm)로 사용
+    absorbance_2 = Series(((((s_rho)/10) * (n * (n_l * 0.1)))))
+
+    
+    # 흡광도 index 설정
+    absorbance_1.index = set_index.map(lambda x : 'A1_' + x)
+    absorbance_2.index = ['A2_rho']
+    ss_SO.index = ['SO']
+    
+    # 두 Series의 병합
+    out_s = Series()
+    out_s = out_s.append(absorbance_2).append(absorbance_1)
+    out_s = out_s.append(ss_SO)
+    # 튜닝된 설명변수의 Series반환
+    return(out_s)
