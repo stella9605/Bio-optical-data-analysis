@@ -68,23 +68,60 @@ test_x_scaled_hbo2 = m_sacled.transform(tunning_test_x_hbo2)
 
 # 모델 생성 함수 사용해서 모델생성
 model_hhb = model_x(x_scaled_hbb, train_y_hbb, 200)
-model_hbo2 = model_x(x_scaled_hbo2, train_y_hbo2, 200)
+model_hbo2 = model_x(x_scaled_hbo2, train_y_hbo2, 1000)
 
 # 모델 test
 #### hhb
-print("\n MAE: %.4f" % (model_hhb.evaluate(x_scaled_hbb,train_y_hbb)[1]))           # 0.78
-print("\n MAE: %.4f" % (model_hhb.evaluate(test_x_scaled_hbb,test_y_hbb)[1]))       # 0.96
+print("\n MAE: %.4f" % (model_hhb.evaluate(x_scaled_hbb,train_y_hbb)[1]))           # 0.84
+print("\n MAE: %.4f" % (model_hhb.evaluate(test_x_scaled_hbb,test_y_hbb)[1]))       # 0.98
 
 #### hbo2
 print("\n MAE: %.4f" % (model_hbo2.evaluate(x_scaled_hbo2,train_y_hbo2)[1]))          # 0.58
-print("\n MAE: %.4f" % (model_hbo2.evaluate(test_x_scaled_hbo2,test_y_hbo2)[1]))      # 0.72
+print("\n MAE: %.4f" % (model_hbo2.evaluate(test_x_scaled_hbo2,test_y_hbo2)[1]))      # 0.70
 
-############################################## 함수 테스트
+####################################################################### test
+train_x_hbb, test_x_hbb, train_y_hbb, test_y_hbb = train_test_split(X,
+                                                                    Y_1,
+                                                                    random_state = 0)
+
+tunning_train_x_hbb = train_x_hbb.apply(tuning_var_test, axis = 1)
+tunning_test_x_hbb = test_x_hbb.apply(tuning_var_test, axis = 1)
+
+m_sacled = StandardScaler()
+m_sacled.fit(tunning_train_x_hbb)
+
+x_scaled_hbb = m_sacled.transform(tunning_train_x_hbb)
+test_x_scaled_hbb = m_sacled.transform(tunning_test_x_hbb)
+
+model_hhb = model_x_test(x_scaled_hbb, train_y_hbb, 200)
+
+print("\n MAE: %.4f" % (model_hhb.evaluate(x_scaled_hbb,train_y_hbb)[1]))           # 0.82
+print("\n MAE: %.4f" % (model_hhb.evaluate(test_x_scaled_hbb,test_y_hbb)[1]))       # 0.93
+
+
+train_x_ca, test_x_ca, train_y_ca, test_y_ca = train_test_split(X,
+                                                                Y_3,
+                                                                random_state = 0)
+
+tunning_train_x_ca = train_x_ca.apply(tuning_var_test, axis = 1)
+tunning_test_x_ca = test_x_ca.apply(tuning_var_test, axis = 1)
+
+m_sacled = StandardScaler()
+m_sacled.fit(tunning_train_x_ca)
+
+x_scaled_ca = m_sacled.transform(tunning_train_x_ca)
+test_x_scaled_ca = m_sacled.transform(tunning_test_x_ca)
+
+model_ca = model_x_test(x_scaled_ca, train_y_ca, 200)
+
+print("\n MAE: %.4f" % (model_hhb.evaluate(x_scaled_ca,train_y_ca)[1]))           # 3.
+print("\n MAE: %.4f" % (model_hhb.evaluate(test_x_scaled_ca,test_y_ca)[1]))       #3.
+########### 함수 테스트
 
 def tuning_var_test(s):
-    s_rho = s[-1]     # _rho (mm -> cm)
-    s_src = s[0:5]       # _src
-    s_dst = s[5:10]        # _dst    
+    s_rho = s[0] / 10     # _rho (mm -> cm)
+    s_src = s[1:36]       # _src
+    s_dst = s[36:]        # _dst    
 
     # index 표준화
     set_index = s_src.index.str.split('_').str[0]
@@ -96,39 +133,51 @@ def tuning_var_test(s):
     #           = ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도)
     
     # 투광도
-    transmittance = (s_dst/s_src)
+    transmittance = (s_dst/s_src) *100
+    
+    # 투과도
+    T1 = 3.9 * 10**(-4) * (10/4) 
+    reflectance = s_dst / (s_src * (T1**2) * ((s_rho/10) * 2))
     
     # 계산 완료후 inf,nan 0으로 치환
     transmittance = [i if i != np.inf else 0.0 for i in transmittance ]
     transmittance = Series(transmittance).fillna(value = 0)
+    
+    reflectance = [i if i != np.inf else 0.0 for i in reflectance ]
+    reflectance = Series(reflectance).fillna(value = 0)
 
     # math.log 계산을 위해 0을 1로 치환후 계산(흡광계수는 1로 가정한다.)
     transmittance = Series([1 if i == 0 else i for i in transmittance ])
-    #흡광도_1 : -log10(I(투과방사선)/I0(입사방사선))  
-    absorbance_1 = Series(map(lambda x : (-math.log(x,10)),transmittance))
     
+    reflectance = Series([1 if i == 0 else i for i in reflectance ])
+    #흡광도_1 : -log10(I(투과방사선)/I0(입사방사선))  
+    absorbance_1 = Series(map(lambda x : ((2-math.log(x,10))/100),transmittance))
+    reflectance = Series(map(lambda x : math.log(x,10), reflectance))
     #흡광도_2 :  ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도) (농도는 1로 가정) 
     # 흡광계수는 감쇠계수 * 감쇠길이(cm)로 사용
+    absorbance_1.mean()
     c = 1
     final_n = ((n_l)**2) * avg_n
     absorbance_2 = Series(((s_rho)**2) * final_n * c)
     
+    absorbance_2 = Series(absorbance_1.mean()/ absorbance_2[0])
     # 흡광도 index 설정
     absorbance_1.index = set_index.map(lambda x : 'A1_' + x)
     absorbance_2.index = ['A2_rho']
-    transmittance.index = set_index.map(lambda x : 'A1_' + x)
+    reflectance.index = set_index.map(lambda x : 'R_' + x)
     # 두 Series의 병합
     out_s = Series()
-    out_s = out_s.append(absorbance_2).append(transmittance)
+    out_s = out_s.append(absorbance_2).append(reflectance)
     # 튜닝된 설명변수의 Series반환
     return(out_s)
-
 # 모델 생성 함수
 def model_x_test(train_x, train_y, number):
    
     # 모델의 설정
     model = Sequential() 
-    model.add(Dense(3, input_dim=6, activation='relu')) 
+    model.add(Dense(13, input_dim=36, activation='relu')) 
+    model.add(Dense(6, activation='relu'))
+    model.add(Dense(3, activation='relu'))
     model.add(Dense(1, activation='relu'))
     
     # 모델 컴파일
@@ -141,21 +190,17 @@ def model_x_test(train_x, train_y, number):
     return(model)
 ################################################ 새로운 모델로 na, ca 진행
     
-X_na_src = X.iloc[:,X.columns.str.endswith('src')].iloc[:,0:15]
-X_na_dst = X.iloc[:,X.columns.str.endswith('dst')].iloc[:,0:15]
-X_na = pd.concat([X_na_src,X_na_dst], axis = 1) 
-X_na['rho'] = X.iloc[:,0:1]
-X_na 
+
+X_ca_dst = X.iloc[:,X.columns.str.endswith('dst')]
+
+X_ca_dst['rho'] = X.iloc[:,0:1]
+X_ca_dst['hhb'] = Y_1_hhb
+X_ca_dst['hbo2'] = Y_2_hbo2
 #### ca
-train_x_ca, test_x_ca, train_y_ca, test_y_ca = train_test_split(X_na,
+train_x_ca, test_x_ca, train_y_ca, test_y_ca = train_test_split(X_ca_dst,
                                                                 Y_3,
                                                                 random_state = 0)
-
-#### na
-train_x_na, test_x_na, train_y_na, test_y_na = train_test_split(X,
-                                                                Y_4,
-                                                                random_state = 0)
-
+s = train_x_ca.iloc[0,:]
 # ca - train,test 변수 튜닝
 tunning_train_x_ca = train_x_ca.apply(tuning_var_test, axis = 1)
 tunning_test_x_ca = test_x_ca.apply(tuning_var_test, axis = 1)
@@ -172,7 +217,7 @@ model_na = model_x_test(x_scaled_ca, train_y_ca, 200)
 
 # 모델 test
 #### na
-print("\n MAE: %.4f" % (model_hhb.evaluate(x_scaled_hbb,train_y_hbb)[1]))
+print("\n MAE: %.4f" % (model_na.evaluate(x_scaled_ca,train_y_ca)[1]))
 print("\n MAE: %.4f" % (model_hhb.evaluate(test_x_scaled_hbb,test_y_hbb)[1]))  
 
 
