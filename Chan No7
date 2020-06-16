@@ -32,7 +32,7 @@ Y_2 = Y.iloc[:,1:2]
 Y_3 = Y.iloc[:,2:3]
 Y_4 = Y.iloc[:,3:4]
 
-# hbb,hbo2 - train, test set
+# train, test set
 #### hbb
 train_x_hbb, test_x_hbb, train_y_hbb, test_y_hbb = train_test_split(X,
                                                                     Y_1,
@@ -42,15 +42,14 @@ train_x_hbb, test_x_hbb, train_y_hbb, test_y_hbb = train_test_split(X,
 train_x_hbo2, test_x_hbo2, train_y_hbo2, test_y_hbo2 = train_test_split(X,
                                                                         Y_2,
                                                                         random_state = 0)
-
-
+ 
 # hbb - train,test 변수 튜닝
-tunning_train_x_hbb = train_x_hbb.apply(tuning_var, axis = 1)
-tunning_test_x_hbb = test_x_hbb.apply(tuning_var, axis = 1)
+tunning_train_x_hbb = train_x_hbb.apply(tuning_var_test, axis = 1)
+tunning_test_x_hbb = test_x_hbb.apply(tuning_var_test, axis = 1)
 
 # hbo2 - train,test 변수 튜닝
-tunning_train_x_hbo2 = train_x_hbo2.apply(tuning_var, axis = 1)
-tunning_test_x_hbo2 = test_x_hbo2.apply(tuning_var, axis = 1)
+tunning_train_x_hbo2 = train_x_hbo2.apply(tuning_var_test, axis = 1)
+tunning_test_x_hbo2 = test_x_hbo2.apply(tuning_var_test, axis = 1)
 
 # hbb - 튜닝 변수 스케일링
 m_sacled = StandardScaler()
@@ -67,62 +66,63 @@ x_scaled_hbo2 = m_sacled.transform(tunning_train_x_hbo2)
 test_x_scaled_hbo2 = m_sacled.transform(tunning_test_x_hbo2)
 
 # 모델 생성 함수 사용해서 모델생성
-model_hhb = model_x(x_scaled_hbb, train_y_hbb, 200)
-model_hbo2 = model_x(x_scaled_hbo2, train_y_hbo2, 1000)
+model_hhb = model_x_test(x_scaled_hbb, train_y_hbb, 500)
+model_hbo2 = model_x_test(x_scaled_hbo2, train_y_hbo2, 500)
 
 # 모델 test
 #### hhb
-print("\n MAE: %.4f" % (model_hhb.evaluate(x_scaled_hbb,train_y_hbb)[1]))           # 0.84
-print("\n MAE: %.4f" % (model_hhb.evaluate(test_x_scaled_hbb,test_y_hbb)[1]))       # 0.98
+print("\n MAE: %.4f" % (model_hhb.evaluate(x_scaled_hbb,train_y_hbb)[1]))           # 0.83
+print("\n MAE: %.4f" % (model_hhb.evaluate(test_x_scaled_hbb,test_y_hbb)[1]))       # 0.96
 
 #### hbo2
-print("\n MAE: %.4f" % (model_hbo2.evaluate(x_scaled_hbo2,train_y_hbo2)[1]))          # 0.58
-print("\n MAE: %.4f" % (model_hbo2.evaluate(test_x_scaled_hbo2,test_y_hbo2)[1]))      # 0.70
+print("\n MAE: %.4f" % (model_hbo2.evaluate(x_scaled_hbo2,train_y_hbo2)[1]))          # 0.57
+print("\n MAE: %.4f" % (model_hbo2.evaluate(test_x_scaled_hbo2,test_y_hbo2)[1]))      # 0.66
 
 ####################################################################### test
-train_x_hbb, test_x_hbb, train_y_hbb, test_y_hbb = train_test_split(X,
-                                                                    Y_1,
-                                                                    random_state = 0)
-
-tunning_train_x_hbb = train_x_hbb.apply(tuning_var_test, axis = 1)
-tunning_test_x_hbb = test_x_hbb.apply(tuning_var_test, axis = 1)
-
-m_sacled = StandardScaler()
-m_sacled.fit(tunning_train_x_hbb)
-
-x_scaled_hbb = m_sacled.transform(tunning_train_x_hbb)
-test_x_scaled_hbb = m_sacled.transform(tunning_test_x_hbb)
-
-model_hhb = model_x_test(x_scaled_hbb, train_y_hbb, 200)
-
-print("\n MAE: %.4f" % (model_hhb.evaluate(x_scaled_hbb,train_y_hbb)[1]))           # 0.82
-print("\n MAE: %.4f" % (model_hhb.evaluate(test_x_scaled_hbb,test_y_hbb)[1]))       # 0.93
-
-
 train_x_ca, test_x_ca, train_y_ca, test_y_ca = train_test_split(X,
                                                                 Y_3,
                                                                 random_state = 0)
+
 
 tunning_train_x_ca = train_x_ca.apply(tuning_var_test, axis = 1)
 tunning_test_x_ca = test_x_ca.apply(tuning_var_test, axis = 1)
 
 m_sacled = StandardScaler()
-m_sacled.fit(tunning_train_x_ca)
+m_sacled.fit(tunning_train_x_ca) 
 
 x_scaled_ca = m_sacled.transform(tunning_train_x_ca)
 test_x_scaled_ca = m_sacled.transform(tunning_test_x_ca)
 
-model_ca = model_x_test(x_scaled_ca, train_y_ca, 200)
+model_ca = model_x_test(x_scaled_ca, train_y_ca, 500)
 
-print("\n MAE: %.4f" % (model_hhb.evaluate(x_scaled_ca,train_y_ca)[1]))           # 3.
-print("\n MAE: %.4f" % (model_hhb.evaluate(test_x_scaled_ca,test_y_ca)[1]))       #3.
+print("\n MAE: %.4f" % (model_ca.evaluate(x_scaled_ca,train_y_ca)[1]))          # 1.7   
+print("\n MAE: %.4f" % (model_ca.evaluate(test_x_scaled_ca,test_y_ca)[1]))      # 2.0
+
+
+train_x_na, test_x_na, train_y_na, test_y_na = train_test_split(X,
+                                                                Y_4,
+                                                                random_state = 0)
+
+tunning_train_x_na = train_x_na.apply(tuning_var_test, axis = 1)
+tunning_test_x_na = test_x_na.apply(tuning_var_test, axis = 1)
+
+m_sacled = StandardScaler()
+m_sacled.fit(tunning_train_x_na)
+
+x_scaled_na = m_sacled.transform(tunning_train_x_na)
+test_x_scaled_na = m_sacled.transform(tunning_test_x_na)
+
+model_na = model_x_test(x_scaled_na, train_y_na, 500)
+
+print("\n MAE: %.4f" % (model_na.evaluate(x_scaled_na,train_y_na)[1]))           # 1.1
+print("\n MAE: %.4f" % (model_na.evaluate(test_x_scaled_na,test_y_na)[1]))       # 1.2
 ########### 함수 테스트
 
 def tuning_var_test(s):
     s_rho = s[0] / 10     # _rho (mm -> cm)
     s_src = s[1:36]       # _src
     s_dst = s[36:]        # _dst    
-
+    
     # index 표준화
     set_index = s_src.index.str.split('_').str[0]
     s_src.index = set_index
@@ -133,7 +133,7 @@ def tuning_var_test(s):
     #           = ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도)
     
     # 투광도
-    transmittance = (s_dst/s_src) *100
+    transmittance = (s_dst/s_src) * 100
     
     # 투과도
     T1 = 3.9 * 10**(-4) * (10/4) 
@@ -151,14 +151,13 @@ def tuning_var_test(s):
     
     reflectance = Series([1 if i == 0 else i for i in reflectance ])
     #흡광도_1 : -log10(I(투과방사선)/I0(입사방사선))  
-    absorbance_1 = Series(map(lambda x : ((2-math.log(x,10))/100),transmittance))
+    absorbance_1 = Series(map(lambda x : (2-math.log(x,10)),transmittance))
     reflectance = Series(map(lambda x : math.log(x,10), reflectance))
     #흡광도_2 :  ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도) (농도는 1로 가정) 
     # 흡광계수는 감쇠계수 * 감쇠길이(cm)로 사용
-    absorbance_1.mean()
     c = 1
     final_n = ((n_l)**2) * avg_n
-    absorbance_2 = Series(((s_rho)**2) * final_n * c)
+    absorbance_2 = Series(((s_rho)**2))
     
     absorbance_2 = Series(absorbance_1.mean()/ absorbance_2[0])
     # 흡광도 index 설정
@@ -167,7 +166,7 @@ def tuning_var_test(s):
     reflectance.index = set_index.map(lambda x : 'R_' + x)
     # 두 Series의 병합
     out_s = Series()
-    out_s = out_s.append(absorbance_2).append(reflectance)
+    out_s = out_s.append(absorbance_2 + 1).append(reflectance + 1)
     # 튜닝된 설명변수의 Series반환
     return(out_s)
 # 모델 생성 함수
@@ -175,9 +174,8 @@ def model_x_test(train_x, train_y, number):
    
     # 모델의 설정
     model = Sequential() 
-    model.add(Dense(13, input_dim=36, activation='relu')) 
-    model.add(Dense(6, activation='relu'))
-    model.add(Dense(3, activation='relu'))
+    model.add(Dense(18, input_dim=36, activation='relu')) 
+    model.add(Dense(8, activation='relu'))
     model.add(Dense(1, activation='relu'))
     
     # 모델 컴파일
@@ -188,51 +186,6 @@ def model_x_test(train_x, train_y, number):
     # 모델 실행 
     model.fit(train_x, train_y, epochs=number, batch_size=10) 
     return(model)
-################################################ 새로운 모델로 na, ca 진행
-    
-
-X_ca_dst = X.iloc[:,X.columns.str.endswith('dst')]
-
-X_ca_dst['rho'] = X.iloc[:,0:1]
-X_ca_dst['hhb'] = Y_1_hhb
-X_ca_dst['hbo2'] = Y_2_hbo2
-#### ca
-train_x_ca, test_x_ca, train_y_ca, test_y_ca = train_test_split(X_ca_dst,
-                                                                Y_3,
-                                                                random_state = 0)
-s = train_x_ca.iloc[0,:]
-# ca - train,test 변수 튜닝
-tunning_train_x_ca = train_x_ca.apply(tuning_var_test, axis = 1)
-tunning_test_x_ca = test_x_ca.apply(tuning_var_test, axis = 1)
-
-# ca - 튜닝 변수 스케일링
-m_sacled = StandardScaler()
-m_sacled.fit(tunning_train_x_ca)
-
-x_scaled_ca = m_sacled.transform(tunning_train_x_ca)
-test_x_scaled_ca = m_sacled.transform(tunning_test_x_ca)
-
-# 모델 생성 함수 사용해서 모델생성
-model_na = model_x_test(x_scaled_ca, train_y_ca, 200)
-
-# 모델 test
-#### na
-print("\n MAE: %.4f" % (model_na.evaluate(x_scaled_ca,train_y_ca)[1]))
-print("\n MAE: %.4f" % (model_hhb.evaluate(test_x_scaled_hbb,test_y_hbb)[1]))  
-
-
-# na - train,test 변수 튜닝
-tunning_train_x_na = train_x_ca.apply(tuning_var, axis = 1)
-tunning_test_x_na = test_x_ca.apply(tuning_var, axis = 1)
-
-# na - 튜닝 변수 스케일링
-m_sacled = StandardScaler()
-m_sacled.fit(tunning_train_x_na)
-
-x_scaled_na = m_sacled.transform(tunning_train_x_na)
-test_x_scaled_na = m_sacled.transform(tunning_test_x_na)
-
-
 ############################################################################### 최종 진행
 
 from keras.models import load_model
@@ -252,7 +205,7 @@ test1=pd.read_csv('sample_submission.csv',index_col='id')
 test1=test1.astype('float')
 
 # 진짜 테스트 변수 가공
-tunning_realtest_x = test.apply(tuning_var, axis = 1)
+tunning_realtest_x = test.apply(tuning_var_test, axis = 1)
 realtest_x_scaled = m_sacled.transform(tunning_realtest_x)
 
 
@@ -260,4 +213,4 @@ test1.hhb=model2_hhb.predict(realtest_x_scaled)
 test1.hbo2=model2_hbo2.predict(realtest_x_scaled)
 test1.ca=model_ca.predict(realtest_x_scaled)
 test1.na=model_na.predict(realtest_x_scaled)
-test1.to_csv("test1.csv")
+test1.to_csv("test 2020-6-16.csv")
