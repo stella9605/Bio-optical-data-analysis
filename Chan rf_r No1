@@ -1,0 +1,95 @@
+from sklearn.metrics import mean_absolute_error
+
+## hhb
+m_rf_hhb = rf_r()
+m_rf_hhb.fit(x_scaled_hhb,train_y_hhb)
+
+test_y_predict = m_rf_hhb.predict(test_x_scaled_hhb)
+train_y_predict = m_rf_hhb.predict(x_scaled_hhb)
+
+mean_absolute_error(train_y_hhb, train_y_predict)       # 0.30
+mean_absolute_error(test_y_hhb, test_y_predict)         # 0.80
+
+## hbo2 
+m_rf_hbo2 = rf_r()
+m_rf_hbo2.fit(x_scaled_hbo2,train_y_hbo2)
+
+test_y_predict = m_rf_hbo2.predict(test_x_scaled_hbo2)
+train_y_predict = m_rf_hbo2.predict(x_scaled_hbo2)
+
+mean_absolute_error(train_y_hbo2, train_y_predict)       # 0.22
+mean_absolute_error(test_y_hbo2, test_y_predict)         # 0.60
+
+## na
+m_rf_na = rf_r()
+m_rf_na.fit(x_scaled_na,train_y_na)
+
+test_y_predict = m_rf_na.predict(test_x_scaled_na)
+train_y_predict = m_rf_na.predict(x_scaled_na)
+
+mean_absolute_error(train_y_na, train_y_predict)    # 0.45
+mean_absolute_error(test_y_na, test_y_predict)      # 1.25
+
+## ca
+m_rf_ca = rf_r()
+m_rf_ca.fit(x_scaled_ca,train_y_ca)
+
+test_y_predict = m_rf_ca.predict(test_x_scaled_ca)
+train_y_predict = m_rf_ca.predict(x_scaled_ca)
+
+mean_absolute_error(train_y_ca, train_y_predict)    # 0.72
+mean_absolute_error(test_y_ca, test_y_predict)      # 1.91
+
+############################################# 함수 테스트
+
+def tuning_var_test(s):
+    s_rho = s[0] / 10     # _rho (mm -> cm)
+    s_src = s[1:36]       # _src
+    s_dst = s[36:]        # _dst    
+    
+    # index 표준화
+    set_index = s_src.index.str.split('_').str[0]
+    s_src.index = set_index
+    s_dst.index = set_index
+
+    # 계산식 (lambert beer 법칙)
+    # A(흡광도) = -log10(I(투과방사선)/I0(입사방사선))  
+    #           = ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도)
+    
+    # 투광도
+    transmittance = (s_dst/s_src) * 100
+    
+    # 투과도
+    T1 = 3.9 * 10**(-4) * (10/4) 
+    reflectance = s_dst / (s_src * (T1**2) * ((s_rho/10) * 2))
+    
+    # 계산 완료후 inf,nan 0으로 치환
+    transmittance = [i if i != np.inf else 0.0 for i in transmittance ]
+    transmittance = Series(transmittance).fillna(value = 0)
+    
+    reflectance = [i if i != np.inf else 0.0 for i in reflectance ]
+    reflectance = Series(reflectance).fillna(value = 0)
+
+    # math.log 계산을 위해 0을 1로 치환후 계산(흡광계수는 1로 가정한다.)
+    transmittance = Series([1 if i == 0 else i for i in transmittance ])
+    
+    reflectance = Series([1 if i == 0 else i for i in reflectance ])
+    #흡광도_1 : -log10(I(투과방사선)/I0(입사방사선))  
+    absorbance_1 = Series(map(lambda x : (2-math.log(x,10)),transmittance))
+    reflectance = Series(map(lambda x : math.log(x,10), reflectance))
+    #흡광도_2 :  ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도) (농도는 1로 가정) 
+    # 흡광계수는 감쇠계수 * 감쇠길이(cm)로 사용
+    c = 1
+    final_n = ((n_l)**2) * avg_n
+    absorbance_2 = Series(((s_rho)**2))
+    
+    absorbance_2 = Series(absorbance_1.mean()/ absorbance_2[0])
+    # 흡광도 index 설정
+    absorbance_1.index = set_index.map(lambda x : 'A1_' + x)
+    absorbance_2.index = ['A2_rho']
+    reflectance.index = set_index.map(lambda x : 'R_' + x)
+    # 두 Series의 병합
+    out_s = Series()
+    out_s = out_s.append(absorbance_2 + 1).append(reflectance + 1)
+    # 튜닝된 설명변수의 Series반환
+    return(out_s)
