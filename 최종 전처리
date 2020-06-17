@@ -1,0 +1,91 @@
+run profile1
+train = pd.read_csv('train.csv', index_col=0)
+test = pd.read_csv('test.csv', index_col=0)
+
+### 반사도컬럼으로 변환하기 위해 다음과 같이 이전과 같은 방법으로 형식적으로 전처리 후 na를 포함한 컬럼을 표현하는 인덱스를 만들어두고 
+### 반사도컬럼으로 변환 후 na컬럼을 다시 복원 후 보간하겠다 
+
+# 결측치 보완
+train_src = train.filter(regex='_src$', axis=1).replace(0, np.NaN) # dst 데이터만 따로 뺀다.
+test_src = test.filter(regex='_src$', axis=1).replace(0, np.NaN) # 보간을 하기위해 결측값을 삭제한다.
+train_dst = train.filter(regex='_dst$', axis=1).replace(0, np.NaN) # dst 데이터만 따로 뺀다.
+test_dst = test.filter(regex='_dst$', axis=1).replace(0, np.NaN) # 보간을 하기위해 결측값을 삭제한다.
+test_dst.head(1)
+
+# na컬럼 인덱스
+train_index_na=train_src.isna().values | train_dst.isna().values
+test_index_na=test_src.isna().values | test_dst.isna().values
+
+# 보간(형식적)
+train_dst = train_dst.interpolate(methods='quadratic', axis=1)
+test_dst = test_dst.interpolate(methods='quadratic', axis=1)
+train_src = train_src.interpolate(methods='quadratic', axis=1)
+test_src = test_src.interpolate(methods='quadratic', axis=1)
+# 스팩트럼 데이터에서 보간이 되지 않은 값은 'bfill'로 일괄 처리한다.
+train_dst=train_dst.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+test_dst=test_dst.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+train_src=train_src.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+test_src=test_src.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+
+train.update(train_dst) # 보간한 데이터를 기존 데이터프레임에 업데이트 한다.
+test.update(test_dst)
+train.update(train_src) # 보간한 데이터를 기존 데이터프레임에 업데이트 한다.
+test.update(test_src)
+
+
+## 튜닝 함수
+def tuning_var_R(s):
+    s_rho = s[0]          # _rho
+    s_src = s[1:36]       # _src
+    s_dst = s[36:]        # _dst    
+
+    # index 표준화
+    set_index = s_src.index.str.split('_').str[0]
+    s_src.index = set_index
+    s_dst.index = set_index
+    
+    # 논문을 통해 빛의 이동경로를 고려한 빛의 세기는 다음과 같다
+    # s_src * T1* R * T2 = s_dst
+ 
+    # 반사도
+    T1 = 3.9 * 10**(-4) * (10/4) 
+    T2 = 3.9 * 10**(-4) * (10/4) 
+        
+    # 다음 두가지를 통해 모델링해본 결과 비슷함
+    reflectance = s_dst / (s_src * (T1**2) * ((s_rho/10) * 2))
+    # reflectance = s_dst / (s_src * (T1**2) * (s_rho/10)**2 * 2)
+
+    reflectance = Series(map(lambda x : math.log(x,10), reflectance))
+
+    # 흡광도 index 설정
+    reflectance.index = set_index.map(lambda x : 'R_' + x)
+    
+    # 튜닝된 설명변수의 Series반환
+    return(reflectance)
+
+
+X = train.iloc[:, :-4]
+Y = train.iloc[:,-4:]
+
+# train 변수 튜닝
+tunning_X = X.apply(tuning_var_R, axis = 1)
+tunning_test = test.apply(tuning_var_R, axis = 1)
+
+
+# 이제 반사도 컬럼으로 변환됐으니 na값을 가졌던 컬럼인덱스를 사용해 NaN을 넣어준다 
+tunning_X.values[train_index_na]=np.NaN
+tunning_test.values[test_index_na]=np.NaN
+
+# 최종 보간
+tunning_X = tunning_X.interpolate(methods='quadratic', axis=1)
+tunning_test = tunning_test.interpolate(methods='quadratic', axis=1)
+# 스팩트럼 데이터에서 보간이 되지 않은 값은 'bfill'로 일괄 처리한다.
+tunning_X=tunning_X.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+tunning_test=tunning_test.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+
+# train, test로 나누기
+train_x, test_x, train_y, test_y = train_test_split(tunning_X,
+                                                    Y,
+                                                    random_state = 0)
+
+
