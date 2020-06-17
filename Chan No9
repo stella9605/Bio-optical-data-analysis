@@ -36,6 +36,11 @@ test.update(test_src)
 X = train.iloc[:, :-4]
 Y = train.iloc[:,-4:]
 
+Y_1 = Y.iloc[:,0:1]
+Y_2 = Y.iloc[:,1:2]
+Y_3 = Y.iloc[:,2:3]
+Y_4 = Y.iloc[:,3:4]
+
 # train 변수 튜닝
 tunning_X = X.apply(tuning_var, axis = 1)
 tunning_test = test.apply(tuning_var, axis = 1)
@@ -145,11 +150,6 @@ test.update(test_dst)
 
 X = train.iloc[:, :-4]
 Y = train.iloc[:,-4:]
-
-Y_1 = Y.iloc[:,0:1]
-Y_2 = Y.iloc[:,1:2]
-Y_3 = Y.iloc[:,2:3]
-Y_4 = Y.iloc[:,3:4]
 
 # train, test set
 #### hhb
