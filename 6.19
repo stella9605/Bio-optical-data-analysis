@@ -1,0 +1,169 @@
+#### train,test data set
+run profile_project3
+run profile1
+
+train = pd.read_csv('train.csv', index_col=0)
+test = pd.read_csv('test.csv', index_col=0)
+
+
+################################################################ new 결측지 보완
+# 결측치 보완
+train_src = train.filter(regex='_src$', axis=1).replace(0, np.NaN) # dst 데이터만 따로 뺀다.
+test_src = test.filter(regex='_src$', axis=1).replace(0, np.NaN) # 보간을 하기위해 결측값을 삭제한다.
+train_dst = train.filter(regex='_dst$', axis=1).replace(0, np.NaN) # dst 데이터만 따로 뺀다.
+test_dst = test.filter(regex='_dst$', axis=1).replace(0, np.NaN) # 보간을 하기위해 결측값을 삭제한다.
+test_dst.head(1)
+
+# na컬럼 인덱스
+train_index_na=train_src.isna().values | train_dst.isna().values
+test_index_na=test_src.isna().values | test_dst.isna().values
+
+# 보간(형식적)
+train_dst = train_dst.interpolate(methods='quadratic', axis=1)
+test_dst = test_dst.interpolate(methods='quadratic', axis=1)
+train_src = train_src.interpolate(methods='quadratic', axis=1)
+test_src = test_src.interpolate(methods='quadratic', axis=1)
+# 스팩트럼 데이터에서 보간이 되지 않은 값은 'bfill'로 일괄 처리한다.
+train_dst=train_dst.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+test_dst=test_dst.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+train_src=train_src.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+test_src=test_src.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+
+train.update(train_dst) # 보간한 데이터를 기존 데이터프레임에 업데이트 한다.
+test.update(test_dst)
+train.update(train_src) # 보간한 데이터를 기존 데이터프레임에 업데이트 한다.
+test.update(test_src)
+
+X = train.iloc[:, :-4]
+Y = train.iloc[:,-4:]
+
+Y_1 = Y.iloc[:,0:1]
+Y_2 = Y.iloc[:,1:2]
+Y_3 = Y.iloc[:,2:3]
+Y_4 = Y.iloc[:,3:4]
+
+# train 변수 튜닝
+tunning_X = X.apply(tuning_var, axis = 1)
+tunning_test = test.apply(tuning_var, axis = 1)
+
+# 이제 반사도 컬럼으로 변환됐으니 na값을 가졌던 컬럼인덱스를 사용해 NaN을 넣어준다 
+tunning_X.iloc[:,1:].values[train_index_na]=np.NaN
+tunning_test.iloc[:,1:].values[test_index_na]=np.NaN
+
+# 최종 보간
+tunning_X = tunning_X.interpolate(methods='quadratic', axis=1)
+tunning_test = tunning_test.interpolate(methods='quadratic', axis=1)
+# 스팩트럼 데이터에서 보간이 되지 않은 값은 'bfill'로 일괄 처리한다.
+tunning_X=tunning_X.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+tunning_test=tunning_test.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+
+# train, test set
+#### hhb
+train_x_hhb, test_x_hhb, train_y_hhb, test_y_hhb = train_test_split(tunning_X,
+                                                                    Y_1,
+                                                                    random_state = 0)
+
+#### hbo2
+train_x_hbo2, test_x_hbo2, train_y_hbo2, test_y_hbo2 = train_test_split(tunning_X,
+                                                                        Y_2,
+                                                                        random_state = 0)
+ 
+#### ca
+train_x_ca, test_x_ca, train_y_ca, test_y_ca = train_test_split(tunning_X,
+                                                                Y_3,
+                                                                random_state = 0)
+
+#### na
+train_x_na, test_x_na, train_y_na, test_y_na = train_test_split(tunning_X,
+                                                                Y_4,
+                                                                random_state = 0)
+
+## new 결측치 보완은 튜닝 전,후를 다 보완했기 때문에 이미 튜닝이 되있는 상태입니다.
+
+
+
+############################################## 모델 변경(RandomForestRegressor)
+## hhb
+rf_r?
+m_rf_hhb = rf_r()
+m_rf_hhb = rf_r(random_state=0, n_estimators=25,max_depth=20, min_samples_split=2) # n_estimators=25, maxdepth = 20, min_samples_split=2
+m_rf_hhb.fit(train_x_hhb, train_y_hhb.iloc[:,0])
+m_rf_hhb.feature_importances_
+
+test_y_hhb_predict = m_rf_hhb.predict(test_x_hhb)
+train_y_hhb_predict = m_rf_hhb.predict(train_x_hhb)
+len(test_y_hhb_predict)
+####MAE
+mean_absolute_error(train_y_hhb, train_y_hhb_predict)       # 0.29
+mean_absolute_error(test_y_hhb, test_y_hhb_predict)         # 0.77
+
+score_train=[] ; score_test=[]
+for i in np.arange(1,21) :
+    m_rf_hhb = rf_r(max_depth=i)
+    m_rf_hhb.fit(train_x_hhb, train_y_hhb.iloc[:,0])
+
+    score_train.append(m_rf_hhb.score(train_x_hhb, train_y_hhb.iloc[:,0]))
+    score_test.append(m_rf_hhb.score(test_x_hhb, test_y_hhb.iloc[:,0]))
+    
+score_train2=[] ; score_test2=[]
+for i in np.arange(2,21) :
+    m_rf_hhb = rf_r(min_samples_split=i, max_depth=20)
+    m_rf_hhb.fit(train_x_hhb, train_y_hhb.iloc[:,0])
+
+    score_train2.append(m_rf_hhb.score(train_x_hhb, train_y_hhb.iloc[:,0]))
+    score_test2.append(m_rf_hhb.score(test_x_hhb, test_y_hhb.iloc[:,0]))
+    
+score_train3=[] ; score_test3=[]
+for i in np.arange(1,200) :
+    m_rf_hhb = rf_r(n_estimators=i, min_samples_split=2, max_depth=20)
+    m_rf_hhb.fit(train_x_hhb, train_y_hhb.iloc[:,0])
+
+    score_train3.append(m_rf_hhb.score(train_x_hhb, train_y_hhb.iloc[:,0]))
+    score_test3.append(m_rf_hhb.score(test_x_hhb, test_y_hhb.iloc[:,0]))
+
+plt.plot(np.arange(2,21), score_train2, label='score_train')
+plt.plot(np.arange(2,21), score_test2, label='score_test', color='red')
+plt.legend() 
+
+## hbo2 
+m_rf_hbo2 = rf_r()
+m_rf_hbo2.fit(train_x_hbo2, list(train_y_hbo2.iloc[:,0]))
+
+test_y_hbo2_predict = m_rf_hbo2.predict(test_x_hbo2)
+train_y_hbo2_predict = m_rf_hbo2.predict(train_x_hbo2)
+
+####MAE
+mean_absolute_error(train_y_hbo2, train_y_hbo2_predict)       # 0.21
+mean_absolute_error(test_y_hbo2, test_y_hbo2_predict)         # 0.57
+
+## ca
+m_rf_ca = rf_r()
+m_rf_ca.fit(train_x_ca, list(train_y_ca.iloc[:,0]))
+
+test_y_ca_predict = m_rf_ca.predict(test_x_ca)
+train_y_ca_predict = m_rf_ca.predict(train_x_ca)
+
+####MAE
+mean_absolute_error(train_y_ca, train_y_ca_predict)    # 0.70
+mean_absolute_error(test_y_ca, test_y_ca_predict)      # 1.85
+
+## na
+m_rf_na = rf_r()
+m_rf_na.fit(train_x_na, list(train_y_na.iloc[:,0]))
+
+test_y_na_predict = m_rf_na.predict(test_x_na)
+train_y_na_predict = m_rf_na.predict(train_x_na)
+
+####MAE
+mean_absolute_error(train_y_na, train_y_na_predict)    # 0.45
+mean_absolute_error(test_y_na, test_y_na_predict)      # 1.24
+
+
+
+
+########## RandomForestRegressor 모델
+test1.hhb=m_rf_hhb.predict(tunning_test)
+test1.hbo2=m_rf_hbo2.predict(tunning_test)
+test1.ca=m_rf_ca.predict(tunning_test)
+test1.na=m_rf_na.predict(tunning_test)
+test1.to_csv("test 2020-6-17.csv")
