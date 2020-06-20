@@ -110,19 +110,6 @@ attenuation_coefficient.index = ['Brain_cortex','Cranial_bone','Skin']  # 인덱
 # NIR-1 적외선의 감쇠계수 합 
 ac_nir1 = attenuation_coefficient.loc[:,'NIR-1'].sum()
 
-
-# 감쇠 길이 DataFrame
-attenuation_length= pd.DataFrame({'NIR-1' : [1.0,0.2,0.4], 
-                                  'NIR-2' : [1.35,0.22,0.44],
-                                  'SWIR' : [1.54,0.23,0.47],
-                                  'SWIR-2' : [1.11,0.2,0.41]})
-
-# 감쇠 길이 index설정 (뇌 피질, 두개골, 피부)
-attenuation_length.index = ['Brain_cortex','Cranial_bone','Skin']  # 인덱스 설정
-
-# NIR-1 적외선의 감쇠길이 합 
-al_l = attenuation_length.loc[:,'NIR-1'].sum() / 10 # mm -> cm
-
 ##################################################### 설명변수 튜닝함수
 def tuning_var(s):
     s_rho = s['rho'] / 10                        # _rho (mm -> cm)
@@ -157,8 +144,8 @@ def tuning_var(s):
     #흡광도_2 :  ε(흡광계수) ⋅ b(투과 경로 길이(cm)) ⋅ c(농도) (농도는 1로 가정) 
     # 흡광계수는 감쇠계수 * 감쇠길이(cm)로 사용
     c = 1
-    final_nir1 = al_l * ac_nir1
-    absorbance_2 = Series((s_rho * final_nir1 * c))
+    final_nir1 = (s_rho + (2.9 / 10)) ac_nir1
+    absorbance_2 = Series((ac_nir1 * final_nir1 * c))
     
     # 흡광도 index 설정
     absorbance_1.index = set_index.map(lambda x : 'A1_' + x)
