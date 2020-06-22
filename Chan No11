@@ -43,12 +43,24 @@ tunning_test = test.apply(tuning_var, axis = 1)
 tunning_X.iloc[:,1:].values[train_index_na]=np.NaN
 tunning_test.iloc[:,1:].values[test_index_na]=np.NaN
 
+# A2_rho 백업
+tunning_X_rho = tunning_X.iloc[0:1,:]
+tunning_test_rho = tunning_test .iloc[0:1,:]
+
+tunning_X = tunning_X.ilocp[1:,:]
+tunning_test = tunning_test.iloc[1:,:]
+
 # 최종 보간
 tunning_X = tunning_X.interpolate(methods='quadratic', axis=1)
 tunning_test = tunning_test.interpolate(methods='quadratic', axis=1)
+
 # 스팩트럼 데이터에서 보간이 되지 않은 값은 'bfill'로 일괄 처리한다.
 tunning_X=tunning_X.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
 tunning_test=tunning_test.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+
+# 보간된 데이터 프레임과 A2_rho 데이터 프레임 결합
+tunning_X = pd.concat([tunning_X_rho, tunning_X ], axis = 1)
+tunning_test = pd.concat([tunning_test_rho, tunning_test ], axis = 1)
 
 # 스케일링
 rs = RobustScaler() # 표준화 변환시에는 “이상치, 특이값 (outlier)이 없어야 한다”, 표준화 후 동일한 값을 더 넓게 분포
