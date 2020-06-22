@@ -1,0 +1,203 @@
+#### train,test data set
+run profile_project
+
+train = pd.read_csv('train.csv', index_col=0)
+test = pd.read_csv('test.csv', index_col=0)
+
+################################################################ new 결측지 보완
+# 결측치 보완
+train_src = train.filter(regex='_src$', axis=1).replace(0, np.NaN) # dst 데이터만 따로 뺀다.
+test_src = test.filter(regex='_src$', axis=1).replace(0, np.NaN) # 보간을 하기위해 결측값을 삭제한다.
+train_dst = train.filter(regex='_dst$', axis=1).replace(0, np.NaN) # dst 데이터만 따로 뺀다.
+test_dst = test.filter(regex='_dst$', axis=1).replace(0, np.NaN) # 보간을 하기위해 결측값을 삭제한다.
+test_dst.head(1)
+
+# na컬럼 인덱스
+train_index_na=train_src.isna().values | train_dst.isna().values
+test_index_na=test_src.isna().values | test_dst.isna().values
+
+# 보간(형식적)
+train_dst = train_dst.interpolate(methods='quadratic', axis=1)
+test_dst = test_dst.interpolate(methods='quadratic', axis=1)
+train_src = train_src.interpolate(methods='quadratic', axis=1)
+test_src = test_src.interpolate(methods='quadratic', axis=1)
+# 스팩트럼 데이터에서 보간이 되지 않은 값은 'bfill'로 일괄 처리한다.
+train_dst=train_dst.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+test_dst=test_dst.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+train_src=train_src.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+test_src=test_src.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+
+train.update(train_dst) # 보간한 데이터를 기존 데이터프레임에 업데이트 한다.
+test.update(test_dst)
+train.update(train_src) # 보간한 데이터를 기존 데이터프레임에 업데이트 한다.
+test.update(test_src)
+
+X = train.iloc[:, :-4]
+Y = train.iloc[:,-4:]
+
+# train 변수 튜닝
+tunning_X = X.apply(tuning_var, axis = 1)
+tunning_test = test.apply(tuning_var, axis = 1)
+
+# 이제 반사도 컬럼으로 변환됐으니 na값을 가졌던 컬럼인덱스를 사용해 NaN을 넣어준다 
+tunning_X.iloc[:,1:].values[train_index_na]=np.NaN
+tunning_test.iloc[:,1:].values[test_index_na]=np.NaN
+
+# 최종 보간
+tunning_X = tunning_X.interpolate(methods='quadratic', axis=1)
+tunning_test = tunning_test.interpolate(methods='quadratic', axis=1)
+# 스팩트럼 데이터에서 보간이 되지 않은 값은 'bfill'로 일괄 처리한다.
+tunning_X=tunning_X.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+tunning_test=tunning_test.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+
+# 스케일링
+rs = RobustScaler() # 표준화 변환시에는 “이상치, 특이값 (outlier)이 없어야 한다”, 표준화 후 동일한 값을 더 넓게 분포
+rs.fit(tunning_X)
+tunning_X_scaled = rs.transform(tunning_X)
+tunning_test_scaled = rs.transform(tunning_test)
+
+# train, test set
+train_x, test_x, train_y, test_y = train_test_split(tunning_X_scaled,
+                                                    Y,
+                                                    random_state = 0)
+
+
+## new 결측치 보완은 튜닝 전,후를 다 보완했기 때문에 이미 튜닝이 되있는 상태입니다.
+
+##################################################매개 변수 search
+n_estimators = [500,800,1500,2500,5000]
+max_features = ['auto', 'sqrt', 'log2']
+max_depth = [10,20,30,40,50]
+max_depth.append(None)
+min_samples_split  = [2,5,10,15,20]
+min_samples_leaf = [1,2,5,10,15]
+
+##########  최적화
+n_estimators_mae = []
+for i in min_samples_split:
+    m_rf_hbo2 = rf_r(min_samples_split = i)
+    m_rf_hbo2.fit(train_x, list(train_y['ca']))
+    
+    test_y_hbo2_predict = m_rf_hbo2.predict(test_x)
+
+    mae_v = mean_absolute_error(test_y['ca'], test_y_hbo2_predict)  
+    
+    n_estimators_mae.append(mae_v)
+           
+############################################## 모델 변경(RandomForestRegressor)
+## hhb
+m_rf_hhb = rf_r()
+m_rf_hhb.fit(train_x, list(train_y['hhb']))
+
+train_y_hhb_predict = m_rf_hhb.predict(train_x)
+test_y_hhb_predict = m_rf_hhb.predict(test_x)
+
+####MAE
+mean_absolute_error(train_y['hhb'], train_y_hhb_predict)       # 0.327
+mean_absolute_error(test_y['hhb'], test_y_hhb_predict)         # 0.778
+
+## hbo2 
+m_rf_hbo2 = rf_r()
+m_rf_hbo2.fit(train_x, list(train_y['hbo2']))
+
+test_y_hbo2_predict = m_rf_hbo2.predict(test_x)
+train_y_hbo2_predict = m_rf_hbo2.predict(train_x)
+
+####MAE
+mean_absolute_error(train_y['hbo2'], train_y_hbo2_predict)       # 0.231
+mean_absolute_error(test_y['hbo2'], test_y_hbo2_predict)         # 0.576
+
+## ca
+m_rf_ca = rf_r()
+m_rf_ca.fit(train_x, list(train_y['ca']))
+
+test_y_ca_predict = m_rf_ca.predict(test_x)
+train_y_ca_predict = m_rf_ca.predict(train_x)
+
+####MAE
+mean_absolute_error(train_y['ca'], train_y_ca_predict)    # 0.751
+mean_absolute_error(test_y['ca'], test_y_ca_predict)      # 1.856
+
+## na
+m_rf_na = rf_r()
+m_rf_na.fit(train_x, list(train_y['na']))
+
+test_y_na_predict = m_rf_na.predict(test_x)
+train_y_na_predict = m_rf_na.predict(train_x)
+rf_r?
+####MAE
+mean_absolute_error(train_y['na'], train_y_na_predict)    # 0.453
+mean_absolute_error(test_y['na'], test_y_na_predict)      # 1.246
+
+############################################################## train 전체 학습
+## hhb
+m_rf_hhb = rf_r(n_estimators = 2000,
+                max_features = 'auto',
+                max_depth = 20,
+                min_samples_split = 5,
+                min_samples_leaf = 2,
+                n_jobs = -1)
+m_rf_hhb.fit(tunning_X_scaled, list(Y['hhb']))
+
+## hbo2 
+m_rf_hbo2 = rf_r(n_estimators = 2000,
+                 max_features = 'auto',
+                 max_depth = 30,
+                 min_samples_split = 2,
+                 min_samples_leaf = 2,
+                 n_jobs = -1)
+m_rf_hbo2.fit(tunning_X_scaled, list(Y['hbo2']))
+
+## ca
+m_rf_ca = rf_r(n_estimators = 2000,
+               max_features = 'auto',
+               max_depth = 40,
+               min_samples_split = 5,
+               min_samples_leaf = 1,
+               n_jobs = -1)
+m_rf_ca.fit(tunning_X_scaled, list(Y['ca']))
+
+## na
+m_rf_na = rf_r(n_estimators = 2000,
+               max_features = 'auto', 
+               max_depth = 40,
+               min_samples_split = 2,
+               min_samples_leaf = 1,
+               n_jobs = -1)
+m_rf_na.fit(tunning_X_scaled, list(Y['na']))
+
+############################################################# TEST.csv 채워넣기
+#### 제출 : 1.100  csv 파일
+test2=pd.read_csv('test 2020-6-18.csv',index_col='id')
+
+#### 철균씨의 NA set
+df_na = pd.read_csv('na.csv')
+df_na = df_na.set_index(['id'])
+test2['na'] = df['na']
+
+#### 주희씨의 hhb set
+df_hhb = pd.read_csv('hhb.csv')
+df_hhb = df_hhb.set_index(['id'])
+test2['hhb'] = df_hhb['hhb']
+
+### write test2.csv
+test2.to_csv("test 2020-6-22(hhb_set).csv")
+
+## sample_submission.csv load
+test1=pd.read_csv('sample_submission.csv',index_col='id')
+test1=test1.astype('float')
+
+#### Y값 
+test_hhb = m_rf_hhb.predict(tunning_test_scaled)
+test_hbo2 = m_rf_hbo2.predict(tunning_test_scaled)
+test_ca = m_rf_ca.predict(tunning_test_scaled)
+test_na = m_rf_na.predict(tunning_test_scaled)
+
+### test1 <- Y 예측값 삽입
+test1['hhb'] = test_hhb
+test1['hbo2'] = test_hbo2
+test1['ca'] = test_ca
+test1['na'] = test_na
+
+########## RandomForestRegressor 모델
+test1.to_csv("test 2020-6-22.csv")
