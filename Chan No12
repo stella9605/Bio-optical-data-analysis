@@ -47,7 +47,7 @@ tunning_test.iloc[:,1:].values[test_index_na]=np.NaN
 tunning_X_rho = tunning_X.iloc[0:1,:]
 tunning_test_rho = tunning_test .iloc[0:1,:]
 
-tunning_X = tunning_X.ilocp[1:,:]
+tunning_X = tunning_X.iloc[1:,:]
 tunning_test = tunning_test.iloc[1:,:]
 
 # 최종 보간
