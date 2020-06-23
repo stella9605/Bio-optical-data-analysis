@@ -30,7 +30,7 @@ submission = pd.read_csv('sample_submission.csv', index_col='id')
 
 
 print(train.shape, test.shape, submission.shape)
-# (10000, 76) (10000, 72) (10000, 6)
+# (10000, 75) (10000, 71) (10000, 4)
 
 submission.head
 train.head
@@ -93,9 +93,9 @@ dataframe = pd.DataFrame(md)
 dataframe = dataframe.fillna(0)
 
 dataframe.to_csv('predstest.csv')
+# 안맞는 데이터 
 
           
-          y_train.values.i
 
 
 ## - ing
