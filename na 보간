@@ -1,0 +1,45 @@
+
+# na 가 0인 행과 0이 아닌 행 리스트로 만들기 
+v_9360=tunning_X.loc[-(Y['na']==0)].index.values
+v_640=tunning_X.loc[(Y['na']==0)].index.values
+
+# 9360개로 학습시켜서 보정할 na값 예측하기 
+# 모델의 설정 
+    model = Sequential() 
+    model.add(Dense(20, input_dim=36, activation='relu')) 
+    model.add(Dense(5, activation='relu'))     
+    model.add(Dense(1))
+
+# 모델 컴파일  
+model.compile(loss='mean_squared_error',
+              optimizer='adam',
+              metrics=['MAE']) 
+
+# 모델 실행 
+model.fit(tunning_X_scaled[v_9360,:], Y['na'][v_9360], epochs=1500, batch_size=1000) 
+
+# na 보간 완료
+Y.iloc[v_640,-1] =model.predict(tunning_X_scaled[v_640,:]).reshape(640)
+(Y.iloc[:,-1]==0).sum() # 0 없음 확인하는 거
+
+train_x, test_x, train_y_nareplace, test_y_nareplace = train_test_split(tunning_X_scaled,
+                                                    Y,
+                                                    random_state = 0)
+
+# 보정된 데이터들을 학습시켜 다시 na 예측하기
+# 모델의 설정 
+    model = Sequential() 
+    model.add(Dense(20, input_dim=36, activation='relu')) 
+    model.add(Dense(5, activation='relu'))     
+    model.add(Dense(1))
+
+# 모델 컴파일  
+model.compile(loss='mean_squared_error',
+              optimizer='adam',
+              metrics=['MAE']) 
+
+# 모델 실행 
+model.fit(train_x, train_y['na'], epochs=1500, batch_size=1000) 
+
+print("\n MAE: %.4f" % (model.evaluate(train_x, train_y['na'])[1]))
+print("\n MAE: %.4f" % (model.evaluate(test_x,test_y['na'])[1]))
