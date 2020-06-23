@@ -44,11 +44,11 @@ tunning_X.iloc[:,1:].values[train_index_na]=np.NaN
 tunning_test.iloc[:,1:].values[test_index_na]=np.NaN
 
 # A2_rho 백업
-tunning_X_rho = tunning_X.iloc[0:1,:]
-tunning_test_rho = tunning_test .iloc[0:1,:]
+tunning_X_rho = tunning_X.iloc[:,0:1]
+tunning_test_rho = tunning_test .iloc[:,0:1]
 
-tunning_X = tunning_X.iloc[1:,:]
-tunning_test = tunning_test.iloc[1:,:]
+tunning_X = tunning_X.iloc[0:,1:]
+tunning_test = tunning_test.iloc[0:,1:]
 
 # 최종 보간
 tunning_X = tunning_X.interpolate(methods='quadratic', axis=1)
@@ -59,12 +59,8 @@ tunning_X=tunning_X.apply(lambda x : x.fillna(method='bfill') ,axis=1)
 tunning_test=tunning_test.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
 
 # 보간된 데이터 프레임과 A2_rho 데이터 프레임 결합
-tunning_X = pd.concat([tunning_X_rho, tunning_X ], axis = 0)
-tunning_test = pd.concat([tunning_test_rho, tunning_test ], axis = 0)
-
-# 모델 학습을 위해 NaN을 0으로 치환
-tunning_X = tunning_X.fillna(value = 0)
-tunning_test = tunning_test.fillna(value = 0)
+tunning_X = pd.concat([tunning_X_rho, tunning_X ], axis = 1)
+tunning_test = pd.concat([tunning_test_rho, tunning_test ], axis = 1)
 
 # 스케일링
 rs = RobustScaler() # 표준화 변환시에는 “이상치, 특이값 (outlier)이 없어야 한다”, 표준화 후 동일한 값을 더 넓게 분포
@@ -78,8 +74,8 @@ train_x, test_x, train_y, test_y = train_test_split(tunning_X_scaled,
                                                     random_state = 0)
 
 
-## new 결측치 보완은 튜닝 전,후를 다 보완했기 때문에 이미 튜닝이 되있는 상태입니다.
 
+## new 결측치 보완은 튜닝 전,후를 다 보완했기 때문에 이미 튜닝이 되있는 상태입니다.
 ##################################################매개 변수 search
 n_estimators = [500,800,1500,2500,5000]
 max_features = ['auto', 'sqrt', 'log2']
@@ -102,29 +98,44 @@ for i in min_samples_split:
            
 ############################################## 모델 변경(RandomForestRegressor)
 ## hhb
-m_rf_hhb = rf_r()
+m_rf_hhb = rf_r(n_estimators = 2000,
+                max_features = 'auto',
+                max_depth = 20,
+                min_samples_split = 5,
+                min_samples_leaf = 2,
+                n_jobs = -1)
 m_rf_hhb.fit(train_x, list(train_y['hhb']))
 
 train_y_hhb_predict = m_rf_hhb.predict(train_x)
 test_y_hhb_predict = m_rf_hhb.predict(test_x)
 
 ####MAE
-mean_absolute_error(train_y['hhb'], train_y_hhb_predict)       # 0.327
-mean_absolute_error(test_y['hhb'], test_y_hhb_predict)         # 0.778
+mean_absolute_error(train_y['hhb'], train_y_hhb_predict)       # 0.326
+mean_absolute_error(test_y['hhb'], test_y_hhb_predict)         # 0.774
 
 ## hbo2 
-m_rf_hbo2 = rf_r()
+m_rf_hbo2 = rf_r(n_estimators = 2000,
+                 max_features = 'auto',
+                 max_depth = 30,
+                 min_samples_split = 2,
+                 min_samples_leaf = 2,
+                 n_jobs = -1)
 m_rf_hbo2.fit(train_x, list(train_y['hbo2']))
 
 test_y_hbo2_predict = m_rf_hbo2.predict(test_x)
 train_y_hbo2_predict = m_rf_hbo2.predict(train_x)
 
 ####MAE
-mean_absolute_error(train_y['hbo2'], train_y_hbo2_predict)       # 0.231
-mean_absolute_error(test_y['hbo2'], test_y_hbo2_predict)         # 0.576
+mean_absolute_error(train_y['hbo2'], train_y_hbo2_predict)       # 0.230
+mean_absolute_error(test_y['hbo2'], test_y_hbo2_predict)         # 0.573
 
 ## ca
-m_rf_ca = rf_r()
+m_rf_ca = rf_r(n_estimators = 2000,
+               max_features = 'auto',
+               max_depth = 40,
+               min_samples_split = 5,
+               min_samples_leaf = 1,
+               n_jobs = -1)
 m_rf_ca.fit(train_x, list(train_y['ca']))
 
 test_y_ca_predict = m_rf_ca.predict(test_x)
@@ -132,18 +143,23 @@ train_y_ca_predict = m_rf_ca.predict(train_x)
 
 ####MAE
 mean_absolute_error(train_y['ca'], train_y_ca_predict)    # 0.751
-mean_absolute_error(test_y['ca'], test_y_ca_predict)      # 1.856
+mean_absolute_error(test_y['ca'], test_y_ca_predict)      # 1.850
 
 ## na
-m_rf_na = rf_r()
+m_rf_na = rf_r(n_estimators = 2000,
+               max_features = 'auto', 
+               max_depth = 40,
+               min_samples_split = 2,
+               min_samples_leaf = 1,
+               n_jobs = -1)
 m_rf_na.fit(train_x, list(train_y['na']))
 
 test_y_na_predict = m_rf_na.predict(test_x)
 train_y_na_predict = m_rf_na.predict(train_x)
-rf_r?
+
 ####MAE
-mean_absolute_error(train_y['na'], train_y_na_predict)    # 0.453
-mean_absolute_error(test_y['na'], test_y_na_predict)      # 1.246
+mean_absolute_error(train_y['na'], train_y_na_predict)    # 0.450
+mean_absolute_error(test_y['na'], test_y_na_predict)      # 1.235
 
 ############################################################## train 전체 학습
 ## hhb
@@ -181,6 +197,79 @@ m_rf_na = rf_r(n_estimators = 2000,
                min_samples_leaf = 1,
                n_jobs = -1)
 m_rf_na.fit(tunning_X_scaled, list(Y['na']))
+
+#################### hhb + hbo2 예측 후 ca 예측
+
+#hhb
+tunning_x_hhb_predict = m_rf_hhb.predict(tunning_X_scaled)
+tunning_test_hhb_predict = m_rf_hhb.predict(tunning_test_scaled)
+#hbo2
+tunning_x_hbo2_predict = m_rf_hbo2.predict(tunning_X_scaled)
+tunning_test_hbo2_predict = m_rf_hbo2.predict(tunning_test_scaled)
+
+#스케일링 전 tunning_X, tunning_test에 hhb, hbo2 추가
+tunning_X_plus = pd.concat([tunning_X, 
+                            pd.DataFrame(tunning_x_hhb_predict, columns = ['hhb']),
+                            pd.DataFrame(tunning_x_hbo2_predict, columns = ['hbo2'])], 
+                           axis = 1)
+
+tunning_test_plus = pd.concat([tunning_test, 
+                               pd.DataFrame(tunning_test_hhb_predict, index = tunning_test.index, columns = ['hhb']),
+                               pd.DataFrame(tunning_test_hbo2_predict, index = tunning_test.index, columns = ['hbo2'])], 
+                              axis = 1)
+
+# 스케일링
+rs = RobustScaler() # 표준화 변환시에는 “이상치, 특이값 (outlier)이 없어야 한다”, 표준화 후 동일한 값을 더 넓게 분포
+rs.fit(tunning_X_plus)
+tunning_X_plus_scaled = rs.transform(tunning_X_plus)
+tunning_test_plus_scaled = rs.transform(tunning_test_plus)
+
+train_x, test_x, train_y, test_y = train_test_split(tunning_X_plus_scaled,
+                                                    Y,
+                                                    random_state = 0)
+# ca
+m_rf_ca = rf_r(n_estimators = 2000,
+               max_features = 'auto',
+               max_depth = 40,
+               min_samples_split = 5,
+               min_samples_leaf = 1,
+               n_jobs = -1)
+m_rf_ca.fit(train_x, list(train_y['ca']))
+
+test_y_ca_predict = m_rf_ca.predict(test_x)
+train_y_ca_predict = m_rf_ca.predict(train_x)
+
+####MAE
+mean_absolute_error(train_y['ca'], train_y_ca_predict)    # 0.659
+mean_absolute_error(test_y['ca'], test_y_ca_predict)      # 1.625
+
+## na
+m_rf_na = rf_r(n_estimators = 2000,
+               max_features = 'auto', 
+               max_depth = 40,
+               min_samples_split = 2,
+               min_samples_leaf = 1,
+               n_jobs = -1)
+m_rf_na.fit(train_x, list(train_y['na']))
+
+test_y_na_predict = m_rf_na.predict(test_x)
+train_y_na_predict = m_rf_na.predict(train_x)
+
+####MAE
+mean_absolute_error(train_y['na'], train_y_na_predict)    # 0.449
+mean_absolute_error(test_y['na'], test_y_na_predict)      # 1.232
+
+# 기존 test.csv 제출 결과 : 1.100
+# test.csv 예측후 제출 결과 mae 값 :1.113
+
+## 결론: train.csv파일의 hhb, hbo2를 예측 후 컬럼으로 추가해 na,ca를 예측한 후 train을 분리해서
+##      train과 test를 예측한 결과 평균 오차가 낮아지는 것을 확인했지만,
+##      test.csv파일의  hhb, hbo2를 예측 후 컬럼으로 추가해 na,ca를 예측한 후 제출한결과 오히려
+##      평균오차가 높아지는 것을 확인했습니다.
+
+## 예상: hhb와 hbo2의 예측값의 오차가 있기 때문에, 이 예측값들을 가지고
+##       na,ca의 예측값들이 실제보다 더 평균오차가 높아진다고 판단됩니다.
+
 
 ############################################################# TEST.csv 채워넣기
 #### 제출 : 1.100  csv 파일
