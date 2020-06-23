@@ -73,28 +73,24 @@ train_x, test_x, train_y, test_y = train_test_split(tunning_X_scaled,
                                                     Y,
                                                     random_state = 0)
 
-
-
 ## new 결측치 보완은 튜닝 전,후를 다 보완했기 때문에 이미 튜닝이 되있는 상태입니다.
-##################################################매개 변수 search
-n_estimators = [500,800,1500,2500,5000]
-max_features = ['auto', 'sqrt', 'log2']
-max_depth = [10,20,30,40,50]
-max_depth.append(None)
-min_samples_split  = [2,5,10,15,20]
-min_samples_leaf = [1,2,5,10,15]
 
-##########  최적화
-n_estimators_mae = []
-for i in min_samples_split:
-    m_rf_hbo2 = rf_r(min_samples_split = i)
-    m_rf_hbo2.fit(train_x, list(train_y['ca']))
-    
-    test_y_hbo2_predict = m_rf_hbo2.predict(test_x)
+################################## MultiOutputRegressor 실험
+from sklearn.multioutput import MultiOutputRegressor
+mor = MultiOutputRegressor(rf_r(),).fit(train_x, train_y[['ca','na']])
 
-    mae_v = mean_absolute_error(test_y['ca'], test_y_hbo2_predict)  
-    
-    n_estimators_mae.append(mae_v)
+train_y_cn_predict = mor.predict(train_x)
+test_y_cn_predict = mor.predict(test_x)
+
+train_y_cn_predict = pd.DataFrame(train_y_cn_predict, columns = ['ca','na'])
+test_y_cn_predict = pd.DataFrame(test_y_cn_predict, columns = ['ca','na'])
+
+mean_absolute_error(train_y['ca'], train_y_cn_predict['ca'])    # 0.751
+mean_absolute_error(test_y['ca'], test_y_cn_predict['ca'])      # 1.847
+
+mean_absolute_error(train_y['na'], train_y_cn_predict['na'])    # 0.450
+mean_absolute_error(test_y['na'], test_y_cn_predict['na'])      # 1.234
+
            
 ############################################## 모델 변경(RandomForestRegressor)
 ## hhb
@@ -109,9 +105,9 @@ m_rf_hhb.fit(train_x, list(train_y['hhb']))
 train_y_hhb_predict = m_rf_hhb.predict(train_x)
 test_y_hhb_predict = m_rf_hhb.predict(test_x)
 
-####MAE
-mean_absolute_error(train_y['hhb'], train_y_hhb_predict)       # 0.326
-mean_absolute_error(test_y['hhb'], test_y_hhb_predict)         # 0.774
+####MAE                                                    스케일링 전     후
+mean_absolute_error(train_y['hhb'], train_y_hhb_predict)      #0.325         # 0.325
+mean_absolute_error(test_y['hhb'], test_y_hhb_predict)        #0.772         # 0.773
 
 ## hbo2 
 m_rf_hbo2 = rf_r(n_estimators = 2000,
@@ -126,8 +122,8 @@ test_y_hbo2_predict = m_rf_hbo2.predict(test_x)
 train_y_hbo2_predict = m_rf_hbo2.predict(train_x)
 
 ####MAE
-mean_absolute_error(train_y['hbo2'], train_y_hbo2_predict)       # 0.230
-mean_absolute_error(test_y['hbo2'], test_y_hbo2_predict)         # 0.573
+mean_absolute_error(train_y['hbo2'], train_y_hbo2_predict)      #0.230    # 0.231
+mean_absolute_error(test_y['hbo2'], test_y_hbo2_predict)        #0.573    # 0.574
 
 ## ca
 m_rf_ca = rf_r(n_estimators = 2000,
@@ -142,8 +138,8 @@ test_y_ca_predict = m_rf_ca.predict(test_x)
 train_y_ca_predict = m_rf_ca.predict(train_x)
 
 ####MAE
-mean_absolute_error(train_y['ca'], train_y_ca_predict)    # 0.751
-mean_absolute_error(test_y['ca'], test_y_ca_predict)      # 1.850
+mean_absolute_error(train_y['ca'], train_y_ca_predict)    #0.751  # 0.752
+mean_absolute_error(test_y['ca'], test_y_ca_predict)      #1.849  # 1.848
 
 ## na
 m_rf_na = rf_r(n_estimators = 2000,
@@ -158,8 +154,8 @@ test_y_na_predict = m_rf_na.predict(test_x)
 train_y_na_predict = m_rf_na.predict(train_x)
 
 ####MAE
-mean_absolute_error(train_y['na'], train_y_na_predict)    # 0.450
-mean_absolute_error(test_y['na'], test_y_na_predict)      # 1.235
+mean_absolute_error(train_y['na'], train_y_na_predict)    #0.450  # 0.450
+mean_absolute_error(test_y['na'], test_y_na_predict)      #1.235  # 1.235
 
 ############################################################## train 전체 학습
 ## hhb
@@ -198,25 +194,15 @@ m_rf_na = rf_r(n_estimators = 2000,
                n_jobs = -1)
 m_rf_na.fit(tunning_X_scaled, list(Y['na']))
 
-#################### hhb + hbo2 예측 후 ca 예측
+############################################### 예측의 예측 (Y 3개를 갖이고 Y 1개를 예측)
 
-#hhb
-tunning_x_hhb_predict = m_rf_hhb.predict(tunning_X_scaled)
-tunning_test_hhb_predict = m_rf_hhb.predict(tunning_test_scaled)
-#hbo2
-tunning_x_hbo2_predict = m_rf_hbo2.predict(tunning_X_scaled)
-tunning_test_hbo2_predict = m_rf_hbo2.predict(tunning_test_scaled)
+#스케일링 전 tunning_X 과 Y 결합
 
-#스케일링 전 tunning_X, tunning_test에 hhb, hbo2 추가
-tunning_X_plus = pd.concat([tunning_X, 
-                            pd.DataFrame(tunning_x_hhb_predict, columns = ['hhb']),
-                            pd.DataFrame(tunning_x_hbo2_predict, columns = ['hbo2'])], 
-                           axis = 1)
+# train의 튜닝한 설명변수와 종속변수 결합
+tunning_X_plus = pd.concat([tunning_X, Y], axis = 1)
 
-tunning_test_plus = pd.concat([tunning_test, 
-                               pd.DataFrame(tunning_test_hhb_predict, index = tunning_test.index, columns = ['hhb']),
-                               pd.DataFrame(tunning_test_hbo2_predict, index = tunning_test.index, columns = ['hbo2'])], 
-                              axis = 1)
+# test의 튜닝한 설명변수와 예측한 종속변수 결함 (mae : 1.09)
+tunning_test_plus = pd.concat([tunning_test,test1], axis = 1)
 
 # 스케일링
 rs = RobustScaler() # 표준화 변환시에는 “이상치, 특이값 (outlier)이 없어야 한다”, 표준화 후 동일한 값을 더 넓게 분포
@@ -224,24 +210,53 @@ rs.fit(tunning_X_plus)
 tunning_X_plus_scaled = rs.transform(tunning_X_plus)
 tunning_test_plus_scaled = rs.transform(tunning_test_plus)
 
-train_x, test_x, train_y, test_y = train_test_split(tunning_X_plus_scaled,
-                                                    Y,
-                                                    random_state = 0)
-# ca
+# 스케일링한 array 보기 편하게 DataFrame 화
+tunning_X_plus_scaled = pd.DataFrame(tunning_X_plus_scaled, index = tunning_X_plus.index, columns = tunning_X_plus.columns)
+tunning_test_plus_scaled = pd.DataFrame(tunning_test_plus_scaled, index = tunning_test_plus.index, columns = tunning_test_plus.columns)
+
+## 특정컬럼을 제외한 색인을 위한 boolen
+# select not hhb columns
+b_hhb = list(map(lambda x : x != 'hhb', tunning_X_plus_scaled.columns))
+# select not hbo2 columns
+b_hbo2 = list(map(lambda x : x != 'hbo2', tunning_X_plus_scaled.columns))
+# select not ca columns
+b_ca = list(map(lambda x : x != 'ca', tunning_X_plus_scaled.columns))
+# select not na columns
+b_na = list(map(lambda x : x != 'na', tunning_X_plus_scaled.columns))
+
+# hhb
+m_rf_hhb = rf_r(n_estimators = 2000,
+                max_features = 'auto',
+                max_depth = 20,
+                min_samples_split = 5,
+                min_samples_leaf = 2,
+                n_jobs = -1)
+m_rf_hhb.fit(tunning_X_plus.iloc[:,b_hhb], list(Y['hhb']))
+
+y_hhb_predict = m_rf_na.predict(tunning_X_plus.iloc[:,b_hhb])
+
+####MAE
+mean_absolute_error(list(Y['hhb']), y_hhb_predict)    # 5.07
+
+
+
+## hbo2 
+m_rf_hbo2 = rf_r(n_estimators = 2000,
+                 max_features = 'auto',
+                 max_depth = 30,
+                 min_samples_split = 2,
+                 min_samples_leaf = 2,
+                 n_jobs = -1)
+m_rf_hbo2.fit(tunning_X_plus_scaled.iloc[:,b_hbo2], list(Y['hbo2']))
+
+## ca
 m_rf_ca = rf_r(n_estimators = 2000,
                max_features = 'auto',
                max_depth = 40,
                min_samples_split = 5,
                min_samples_leaf = 1,
                n_jobs = -1)
-m_rf_ca.fit(train_x, list(train_y['ca']))
-
-test_y_ca_predict = m_rf_ca.predict(test_x)
-train_y_ca_predict = m_rf_ca.predict(train_x)
-
-####MAE
-mean_absolute_error(train_y['ca'], train_y_ca_predict)    # 0.659
-mean_absolute_error(test_y['ca'], test_y_ca_predict)      # 1.625
+m_rf_ca.fit(tunning_X_plus_scaled.iloc[:,b_ca], list(Y['ca']))
 
 ## na
 m_rf_na = rf_r(n_estimators = 2000,
@@ -250,25 +265,18 @@ m_rf_na = rf_r(n_estimators = 2000,
                min_samples_split = 2,
                min_samples_leaf = 1,
                n_jobs = -1)
-m_rf_na.fit(train_x, list(train_y['na']))
+m_rf_na.fit(tunning_X_plus_scaled.iloc[:,b_na], list(Y['na']))
 
-test_y_na_predict = m_rf_na.predict(test_x)
-train_y_na_predict = m_rf_na.predict(train_x)
+### realtest predict
 
-####MAE
-mean_absolute_error(train_y['na'], train_y_na_predict)    # 0.449
-mean_absolute_error(test_y['na'], test_y_na_predict)      # 1.232
+test_hhb = m_rf_hhb.predict(tunning_test_plus_scaled.iloc[:,b_hhb])
+test_hbo2 = m_rf_hbo2.predict(tunning_test_plus_scaled.iloc[:,b_hbo2])
+test_ca = m_rf_ca.predict(tunning_test_plus_scaled.iloc[:,b_ca])
+test_na = m_rf_na.predict(tunning_test_plus_scaled.iloc[:,b_na])
 
-# 기존 test.csv 제출 결과 : 1.100
-# test.csv 예측후 제출 결과 mae 값 :1.113
 
-## 결론: train.csv파일의 hhb, hbo2를 예측 후 컬럼으로 추가해 na,ca를 예측한 후 train을 분리해서
-##      train과 test를 예측한 결과 평균 오차가 낮아지는 것을 확인했지만,
-##      test.csv파일의  hhb, hbo2를 예측 후 컬럼으로 추가해 na,ca를 예측한 후 제출한결과 오히려
-##      평균오차가 높아지는 것을 확인했습니다.
-
-## 예상: hhb와 hbo2의 예측값의 오차가 있기 때문에, 이 예측값들을 가지고
-##       na,ca의 예측값들이 실제보다 더 평균오차가 높아진다고 판단됩니다.
+# 기존 test.csv 제출 결과 : 1.09
+# test.csv 예측후 제출 결과 mae 값 :
 
 
 ############################################################# TEST.csv 채워넣기
@@ -305,4 +313,4 @@ test1['ca'] = test_ca
 test1['na'] = test_na
 
 ########## RandomForestRegressor 모델
-test1.to_csv("test 2020-6-22.csv")
+test1.to_csv("test 2020-6-23(예측의 예측).csv")
