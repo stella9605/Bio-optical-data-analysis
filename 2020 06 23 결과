@@ -128,7 +128,6 @@ train_x_na, test_x_na, train_y_na, test_y_na = train_test_split(tunning_X_scaled
 ## new 결측치 보완은 튜닝 전,후를 다 보완했기 때문에 이미 튜닝이 되있는 상태입니다.
 
 ############################################## 모델 변경(RandomForestRegressor)
-# hhb 스케일러 없음
 ## hhb
 m_rf_hhb = rf_r(n_estimators = 2000,
                 max_features = 'auto',
