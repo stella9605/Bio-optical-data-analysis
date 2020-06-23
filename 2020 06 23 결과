@@ -175,8 +175,8 @@ test_y_hhbhbo2_predict = m_rf_hhbhbo2.predict(test_x_hhbhbo2)
 train_y_hhbhbo2_predict = m_rf_hhbhbo2.predict(train_x_hhbhbo2)
 
 ####MAE
-mean_absolute_error(train_y_hhbhbo2, train_y_hhbhbo2_predict)        # train 0.15330239423420072
-mean_absolute_error(test_y_hhbhbo2, test_y_hhbhbo2_predict)          # test 0.33598183202477927
+mean_absolute_error(train_y_hhbhbo2, train_y_hhbhbo2_predict)        # 산소포화도 구한 후 hbo2, hhb 한번에 구함 train 0.15330239423420072
+mean_absolute_error(test_y_hhbhbo2, test_y_hhbhbo2_predict)          # 산소포화도 구한 후 hbo2, hhb 한번에 구함 test 0.33598183202477927
 
 train['SO'] = train.hhb / (train.hbo2 + train.hhb) * 100
 
