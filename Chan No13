@@ -62,6 +62,10 @@ tunning_test=tunning_test.apply(lambda x : x.fillna(method='bfill') ,axis=1)
 tunning_X = pd.concat([tunning_X_rho, tunning_X ], axis = 0)
 tunning_test = pd.concat([tunning_test_rho, tunning_test ], axis = 0)
 
+# 모델 학습을 위해 NaN을 0으로 치환
+tunning_X = tunning_X.fillna(value = 0)
+tunning_test = tunning_test.fillna(value = 0)
+
 # 스케일링
 rs = RobustScaler() # 표준화 변환시에는 “이상치, 특이값 (outlier)이 없어야 한다”, 표준화 후 동일한 값을 더 넓게 분포
 rs.fit(tunning_X)
