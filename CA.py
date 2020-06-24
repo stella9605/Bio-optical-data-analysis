@@ -65,9 +65,48 @@ rf_r_random = RandomizedSearchCV(estimator = m_rf_ca,
                                  n_jobs = -1)
 rf_r_random.fit(train_x, train_y['ca'])
 
+# RandomizedSearchCV(cv=5, error_score=nan,
+#                    estimator=RandomForestRegressor(bootstrap=True,
+#                                                    ccp_alpha=0.0,
+#                                                    criterion='mse',
+#                                                    max_depth=30,
+#                                                    max_features=30,
+#                                                    max_leaf_nodes=None,
+#                                                    max_samples=None,
+#                                                    min_impurity_decrease=0.0,
+#                                                    min_impurity_split=None,
+#                                                    min_samples_leaf=4,
+#                                                    min_samples_split=5,
+#                                                    min_weight_fraction_leaf=0.0,
+#                                                    n_estimators=2000, n_jobs=-1,
+#                                                    oob_score=False,
+#                                                    rando...
+#                                                    warm_start=False),
+#                    iid='deprecated', n_iter=500, n_jobs=-1,
+#                    param_distributions=[{'max_depth': [10, 20, 30, 40, 50,
+#                                                        None],
+#                                          'max_features': ['auto', 'sqrt',
+#                                                           'log2'],
+#                                          'min_samples_leaf': [1, 2, 5, 10, 15],
+#                                          'min_samples_split': [2, 5, 10, 15,
+#                                                                20],
+#                                          'n_estimators': [100, 200, 400, 800,
+#                                                           1600, 2000]}],
+#                    pre_dispatch='2*n_jobs', random_state=42, refit=True,
+#                    return_train_score=False, scoring=None, verbose=2)
 
-train_y_ca_rdpredict = rf_r_random.fit(train_x)
-test_y_ca_rdpredict = rf_f_random.fit(test_x)
+# train_y_ca_rdpredict = rf_r_random.fit(train_x)
+# Fitting 5 folds for each of 500 candidates, totalling 2500 fits
+# [Parallel(n_jobs=-1)]: Using backend LokyBackend with 12 concurrent workers.
+# [Parallel(n_jobs=-1)]: Done  17 tasks      | elapsed:    1.9s
+# [Parallel(n_jobs=-1)]: Done 492 tasks      | elapsed:    2.6s
+# [Parallel(n_jobs=-1)]: Done 2453 tasks      | elapsed:    3.9s
+# [Parallel(n_jobs=-1)]: Done 2500 out of 2500 | elapsed:    4.0s finished
+
+
+
+train_y_ca_rdpredict = rf_r_random.fit(train_x, train_y['ca'])
+test_y_ca_rdpredict = rf_r_random.fit(test_x, test_y['ca'])
 
 
 ##MAE 
