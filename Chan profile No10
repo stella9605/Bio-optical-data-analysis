@@ -162,4 +162,25 @@ def model_x(train_x, train_y, number,d1,d2):
  
     # 모델 실행 
     model.fit(train_x, train_y, epochs=number, batch_size=75) 
+
+##################################################### ann 모델 생성 함수 - 얼리스탑함수 적용
+from keras.callbacks import EarlyStopping
+early_stopping = EarlyStopping(patience = 20) # 조기종료 콜백함수 정의
+
+def model_x_early(train_x, train_y, number,d1,d2):
+   
+    # 모델의 설정
+    model = Sequential() 
+    model.add(Dense(d1, input_dim=36, activation='relu')) 
+    model.add(Dense(d2, activation='relu'))
+    model.add(Dense(1))
+    17
+    # 모델 컴파일
+    model.compile(loss='mean_absolute_error',
+                  optimizer='adam',
+                  metrics=['MAE'])
+
+
+    # 모델 실행 
+    model.fit(train_x, train_y, epochs=number, batch_size=75, callbacks=[early_stopping]) 
     return(model)
