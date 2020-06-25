@@ -1,0 +1,182 @@
+#### train,test data set
+run profile_project3
+run profile1
+
+train = pd.read_csv('train.csv', index_col=0)
+test = pd.read_csv('test.csv', index_col=0)
+
+################################################################ new 결측지 보완
+# 결측치 보완
+train_src = train.filter(regex='_src$', axis=1).replace(0, np.NaN) # dst 데이터만 따로 뺀다.
+test_src = test.filter(regex='_src$', axis=1).replace(0, np.NaN) # 보간을 하기위해 결측값을 삭제한다.
+train_dst = train.filter(regex='_dst$', axis=1).replace(0, np.NaN) # dst 데이터만 따로 뺀다.
+test_dst = test.filter(regex='_dst$', axis=1).replace(0, np.NaN) # 보간을 하기위해 결측값을 삭제한다.
+
+
+# na컬럼 인덱스
+train_index_na=train_src.isna().values | train_dst.isna().values
+test_index_na=test_src.isna().values | test_dst.isna().values
+
+# 보간(형식적)
+train_dst = train_dst.interpolate(methods='quadratic', axis=1)
+test_dst = test_dst.interpolate(methods='quadratic', axis=1)
+train_src = train_src.interpolate(methods='quadratic', axis=1)
+test_src = test_src.interpolate(methods='quadratic', axis=1)
+# 스팩트럼 데이터에서 보간이 되지 않은 값은 'bfill'로 일괄 처리한다.
+train_dst=train_dst.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+test_dst=test_dst.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+train_src=train_src.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+test_src=test_src.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+
+train.update(train_dst) # 보간한 데이터를 기존 데이터프레임에 업데이트 한다.
+test.update(test_dst)
+train.update(train_src) # 보간한 데이터를 기존 데이터프레임에 업데이트 한다.
+test.update(test_src)
+
+X = train.iloc[:, :-4]
+Y = train.iloc[:,-4:]
+
+# train 변수 튜닝
+tunning_X = X.apply(tuning_var, axis = 1)
+tunning_test = test.apply(tuning_var, axis = 1)
+
+# 이제 반사도 컬럼으로 변환됐으니 na값을 가졌던 컬럼인덱스를 사용해 NaN을 넣어준다 
+tunning_X.iloc[:,1:].values[train_index_na]=np.NaN
+tunning_test.iloc[:,1:].values[test_index_na]=np.NaN
+
+# A2_rho 백업
+tunning_X_rho = tunning_X.iloc[:,0:1]
+tunning_test_rho = tunning_test .iloc[:,0:1]
+
+tunning_X = tunning_X.iloc[0:,1:]
+tunning_test = tunning_test.iloc[0:,1:]
+
+# 최종 보간
+tunning_X = tunning_X.interpolate(methods='quadratic', axis=1)
+tunning_test = tunning_test.interpolate(methods='quadratic', axis=1)
+
+# 스팩트럼 데이터에서 보간이 되지 않은 값은 'bfill'로 일괄 처리한다.
+tunning_X=tunning_X.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+tunning_test=tunning_test.apply(lambda x : x.fillna(method='bfill') ,axis=1) 
+
+# 보간된 데이터 프레임과 A2_rho 데이터 프레임 결합
+tunning_X = pd.concat([tunning_X_rho, tunning_X ], axis = 1)
+tunning_test = pd.concat([tunning_test_rho, tunning_test ], axis = 1)
+
+# 스케일링
+rs = RobustScaler() # 표준화 변환시에는 “이상치, 특이값 (outlier)이 없어야 한다”, 표준화 후 동일한 값을 더 넓게 분포
+rs.fit(tunning_X)
+tunning_X_scaled = rs.transform(tunning_X)
+tunning_test_scaled = rs.transform(tunning_test)
+
+# train, test set
+train_x, test_x, train_y, test_y = train_test_split(tunning_X_scaled,
+                                                    Y,
+                                                    random_state = 0)
+
+## new 결측치 보완은 튜닝 전,후를 다 보완했기 때문에 이미 튜닝이 되있는 상태입니다.
+
+
+########################################################### ann모델
+model_hhb = model_x(train_x, train_y['hhb'], 10000, 18, 6)
+
+print("\n Accuracy: %.4f" % (model_hhb.evaluate(train_x,train_y['hhb'])[1])) 
+print("\n Accuracy: %.4f" % (model_hhb.evaluate(test_x,test_y['hhb'])[1])) 
+
+model_hbo2 = model_x(train_x, train_y['hbo2'], 10000, 18, 6)
+
+print("\n Accuracy: %.4f" % (model_hbo2.evaluate(train_x,train_y['hbo2'])[1]))
+print("\n Accuracy: %.4f" % (model_hbo2.evaluate(test_x,test_y['hbo2'])[1]))
+
+model_ca = model_x(train_x, train_y['ca'], 7000, 18, 6)
+
+print("\n Accuracy: %.4f" % (model_ca.evaluate(train_x,train_y['ca'])[1]))
+print("\n Accuracy: %.4f" % (model_ca.evaluate(test_x,test_y['ca'])[1]))
+
+model_na = model_x(train_x, train_y['na'], 4000, 18, 6)
+
+print("\n Accuracy: %.4f" % (model_na.evaluate(train_x,train_y['na'])[1]))
+print("\n Accuracy: %.4f" % (model_na.evaluate(test_x,test_y['na'])[1]))
+
+# loss : mean_absolute_error
+# 노드수:      18 6           
+# hhb :       0.6835
+# hbo2:       0.4809      
+# ca  :       1.7042       
+# na  :       1.1922  
+ 
+# 평균:       1.0152
+
+############################################################ early ann # batch_size = 2000
+run profile_project3
+########################################################### ann모델
+model_hhb_early = model_x_early(train_x, train_y['hhb'], 15000, 18, 6)
+
+print("\n Accuracy: %.4f" % (model_hhb_early.evaluate(train_x,train_y['hhb'])[1]))  #2000=0.5997, 0.6673
+print("\n Accuracy: %.4f" % (model_hhb_early.evaluate(test_x,test_y['hhb'])[1]))  
+
+model_hbo2_early = model_x_early(train_x, train_y['hbo2'], 15000, 18, 6)
+
+print("\n Accuracy: %.4f" % (model_hbo2_early.evaluate(train_x,train_y['hbo2'])[1])) #0.4439
+print("\n Accuracy: %.4f" % (model_hbo2_early.evaluate(test_x,test_y['hbo2'])[1])) #0.5027
+
+model_ca_early = model_x_early(train_x, train_y['ca'], 7000, 18, 6)
+
+print("\n Accuracy: %.4f" % (model_ca_early.evaluate(train_x,train_y['ca'])[1])) # 1.6556
+print("\n Accuracy: %.4f" % (model_ca_early.evaluate(test_x,test_y['ca'])[1]))  # 1.7586
+
+model_na_early = model_x_early(train_x, train_y['na'], 4000, 18, 6)
+
+print("\n Accuracy: %.4f" % (model_na_early.evaluate(train_x,train_y['na'])[1])) # 1.0829
+print("\n Accuracy: %.4f" % (model_na_early.evaluate(test_x,test_y['na'])[1])) # 1.1962
+
+
+############################ ann 모델 train 전체 학습
+# model_x(X, Y, epochs, 1레이터 노드, 2레이어 노드 )
+model_hhb = model_x(tunning_X_scaled, Y['hhb'], 15000, 18, 6) 
+
+model_hbo2 = model_x(tunning_X_scaled, Y['hbo2'], 15000, 18, 6)
+
+model_ca = model_x(tunning_X_scaled, Y['ca'], 7000, 18, 6)
+
+model_na = model_x(tunning_X_scaled, Y['na'], 4000, 18, 6)
+
+# 제출결과(mae) : 1.02
+
+############################ ann 모델 early 적용
+model_hhb = model_x_early(tunning_X_scaled, Y['hhb'], 15000, 18, 6) 
+
+model_hbo2 = model_x_early(tunning_X_scaled, Y['hbo2'], 15000, 18, 6)
+
+model_ca = model_x_early(tunning_X_scaled, Y['ca'], 7000, 18, 6)
+
+model_na = model_x_early(tunning_X_scaled, Y['na'], 4000, 18, 6)
+## sample_submission.csv load
+test1=pd.read_csv('sample_submission.csv',index_col='id')
+test1=test1.astype('float')
+
+#### Y값 
+test_hhb = model_hhb.predict(tunning_test_scaled)
+test_hbo2 = model_hbo2.predict(tunning_test_scaled)
+test_ca = model_ca.predict(tunning_test_scaled)
+test_na = model_na.predict(tunning_test_scaled)
+
+test_hhb_early = model_hhb_early.predict(tunning_test_scaled)
+test_hbo2_early = model_hbo2_early.predict(tunning_test_scaled)
+test_ca_early = model_ca_early.predict(tunning_test_scaled)
+test_na_early = model_na_early.predict(tunning_test_scaled)
+
+### test1 <- Y 예측값 삽입
+test1['hhb'] = test_hhb
+test1['hbo2'] = test_hbo2
+test1['ca'] = test_ca
+test1['na'] = test_na
+
+### test1 <- Y early 예측값 삽입
+test1['hhb'] = test_hhb_early
+test1['hbo2'] = test_hbo2_early
+test1['ca'] = test_ca_early
+test1['na'] = test_na_early
+
+#########  모델
+test1.to_csv("test 2020-6-25(1).csv")
