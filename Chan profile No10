@@ -182,13 +182,13 @@ def tuning_var2(s):
     # final_len = (s_rho) + (2.9 / 10)   # 측정길이 + 조직별 감쇠계수의 측적 길이
     # absorbance_2 = Series(((ac_nir1) * final_len * c))
     rho_edit=[]
-    if train.iloc[i,0]==10:
-        rho_edit.append(10**(-7)
-    if train.iloc[i,0]==15:
+    if s_rho==1:
+        rho_edit.append(10**(-7))
+    if s_rho==1.5:
         rho_edit.append(10**(-14/3))
-    if train.iloc[i,0]==20:
+    if s_rho==2:
         rho_edit.append(10**(-7/3))
-    if train.iloc[i,0]==25:
+    if s_rho==2.5:
         rho_edit.append(1)
     absorbance_2 = Series(rho_edit)
        
@@ -203,7 +203,7 @@ def tuning_var2(s):
     return(out_s)
 
 ###################################################### 새로운 튜닝함수3) - 보정한 측정거리로 고려 
-def tuning_var2(s):
+def tuning_var3(s):
     s_rho = s['rho'] / 10                        # _rho (mm -> cm)
     s_src = s[s.index.str.endswith('src')]       # _src
     s_dst = s[s.index.str.endswith('dst')]       # _dst    
@@ -239,13 +239,13 @@ def tuning_var2(s):
     # final_len = (s_rho) + (2.9 / 10)   # 측정길이 + 조직별 감쇠계수의 측적 길이
     # absorbance_2 = Series(((ac_nir1) * final_len * c))
     rho_edit=[]
-    if train.iloc[i,0]==10:
-        rho_edit.append(10**(-7)
-    if train.iloc[i,0]==15:
+    if s_rho==1:
+        rho_edit.append(10**(-7))
+    if s_rho==1.5:
         rho_edit.append(10**(-14/3))
-    if train.iloc[i,0]==20:
+    if s_rho==2:
         rho_edit.append(10**(-7/3))
-    if train.iloc[i,0]==25:
+    if s_rho==2.5:
         rho_edit.append(1)
     absorbance_2 = Series(map(lambda x : (math.log(x,10)),rho_edit))
        
